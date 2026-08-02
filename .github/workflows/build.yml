@@ -26,6 +26,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Setup Expo
         uses: expo/expo-github-action@v8
         with:
@@ -35,8 +38,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # `npx eas` fails with "could not determine executable to run": the
+      # `eas` binary ships in the `eas-cli` package, not a package literally
+      # named `eas`, so npx can't auto-resolve it. Install it explicitly.
+      - name: Install eas-cli
+        run: npm install --global eas-cli
+
       - name: Build Android APK (preview)
-        run: npx eas build --platform android --profile preview --non-interactive --local
+        run: eas build --platform android --profile preview --non-interactive --local
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
@@ -70,8 +79,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install eas-cli
+        run: npm install --global eas-cli
+
       - name: Build iOS Simulator (preview)
-        run: npx eas build --platform ios --profile preview --non-interactive --local
+        run: eas build --platform ios --profile preview --non-interactive --local
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
