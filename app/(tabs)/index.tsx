@@ -1,4 +1,5 @@
-import { ScrollView } from 'react-native'
+import { useMemo, useState } from 'react'
+import { Pressable, ScrollView } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { Ban, Globe, Hash, Hourglass, Eye } from 'lucide-react-native'
@@ -6,6 +7,7 @@ import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Separator } from '@/components/ui/separator'
 import { StatCard } from '@/components/StatCard'
+import { AppHeader } from '@/components/AppHeader'
 import { BarChart } from '@/components/charts/bar-chart'
 import { DoughnutChart } from '@/components/charts/doughnut-chart'
 import { ChartContainer } from '@/components/charts/chart-container'
@@ -23,6 +25,19 @@ const HOURLY_DATA = Array.from({ length: 24 }, (_, h) => {
   return { label: `${h}h`, value: minutes }
 })
 
+// Demo total screen time per day for the last 7 days — mirrors the
+// extension's "evolution7d" line chart until real usage-tracking lands
+// (LOGIC.md phase 2: mock data first).
+const WEEKLY_DATA = [
+  { label: 'Lun', value: 145 },
+  { label: 'Mar', value: 98 },
+  { label: 'Mer', value: 172 },
+  { label: 'Jeu', value: 130 },
+  { label: 'Ven', value: 205 },
+  { label: 'Sam', value: 88 },
+  { label: 'Dim', value: 161 },
+]
+
 // Demo split across the 5 real categories — adult included so the layout
 // and warning banners are representative even with mocked data.
 const CATEGORY_VALUES: Record<string, number> = {
@@ -36,20 +51,20 @@ const CATEGORY_VALUES: Record<string, number> = {
 const VISITS_TODAY = 9
 
 // Combined app + website browsing history — mirrors the extension's
-// Analytics history table (site/app, category, time). Minutes are split
-// to match CATEGORY_VALUES above; real per-item tracking lands in a later
-// phase (see LOGIC.md — mock data first).
-type HistoryEntry = { name: string; type: 'app' | 'site'; category: SiteCategory; minutes: number }
-const HISTORY_ENTRIES_UNSORTED: HistoryEntry[] = [
-  { name: 'Instagram', type: 'app', category: 'distraction', minutes: 34 },
-  { name: 'Notion', type: 'app', category: 'productivity', minutes: 40 },
-  { name: 'YouTube', type: 'app', category: 'entertainment', minutes: 14 },
-  { name: 'tiktok.com', type: 'site', category: 'distraction', minutes: 27 },
-  { name: 'github.com', type: 'site', category: 'productivity', minutes: 26 },
-  { name: 'weather.com', type: 'site', category: 'other', minutes: 10 },
-  { name: 'site-restreint.com', type: 'site', category: 'adult', minutes: 10 },
+// Analytics history table (site/app, category, time), broken down per hour
+// so a click on an hourly bar can filter it (1 bar = 1 hour). Real
+// per-item tracking lands in a later phase (see LOGIC.md — mock data first).
+type HistoryEntry = { name: string; type: 'app' | 'site'; category: SiteCategory; hourly: Record<number, number> }
+const HISTORY_ENTRIES: HistoryEntry[] = [
+  { name: 'Instagram', type: 'app', category: 'distraction', hourly: { 20: 20, 21: 14 } },
+  { name: 'Notion', type: 'app', category: 'productivity', hourly: { 9: 22, 10: 18 } },
+  { name: 'YouTube', type: 'app', category: 'entertainment', hourly: { 21: 14 } },
+  { name: 'tiktok.com', type: 'site', category: 'distraction', hourly: { 19: 15, 20: 12 } },
+  { name: 'github.com', type: 'site', category: 'productivity', hourly: { 9: 26 } },
+  { name: 'weather.com', type: 'site', category: 'other', hourly: { 13: 10 } },
+  { name: 'site-restreint.com', type: 'site', category: 'adult', hourly: { 22: 10 } },
 ]
-const HISTORY_ENTRIES = [...HISTORY_ENTRIES_UNSORTED].sort((a, b) => b.minutes - a.minutes)
+const entryTotalMinutes = (e: HistoryEntry) => Object.values(e.hourly).reduce((s, m) => s + m, 0)
 
 export default function AnalyticsScreen() {
   const { t } = useTranslation('analytics')
@@ -69,17 +84,34 @@ export default function AnalyticsScreen() {
     .map(cat => ({ label: tc(CATEGORY_META[cat].labelKey), value: CATEGORY_VALUES[cat], color: CATEGORY_META[cat].color }))
   const distractionPct = CATEGORY_VALUES.distraction
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: background }}
-      contentContainerStyle={{ padding: 20, paddingTop: 60, paddingBottom: 40, gap: 20 }}
-    >
-      <View>
-        <Text variant="title">{t('title')}</Text>
-        <Text variant="caption" style={{ marginTop: 2 }}>{`${tc('today')} · ${todayLabel}`}</Text>
-      </View>
+  const [selectedHour, setSelectedHour] = useState<number | null>(null)
+  const onHourPress = (index: number) => setSelectedHour(prev => (prev === index ? null : index))
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
+  const displayedHistory = useMemo(() => {
+    if (selectedHour === null) {
+      return HISTORY_ENTRIES
+        .map(e => ({ ...e, minutes: entryTotalMinutes(e) }))
+        .sort((a, b) => b.minutes - a.minutes)
+    }
+    return HISTORY_ENTRIES
+      .filter(e => (e.hourly[selectedHour] ?? 0) > 0)
+      .map(e => ({ ...e, minutes: e.hourly[selectedHour] }))
+      .sort((a, b) => b.minutes - a.minutes)
+  }, [selectedHour])
+
+  return (
+    <View style={{ flex: 1, backgroundColor: background }}>
+      <AppHeader />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}
+      >
+        <View>
+          <Text variant="title">{t('title')}</Text>
+          <Text variant="caption" style={{ marginTop: 2 }}>{`${tc('today')} · ${todayLabel}`}</Text>
+        </View>
+
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
         <Animated.View entering={FadeInDown.delay(0).duration(400)} style={{ width: '48%' }}>
           <StatCard label="Apps bloquées" value={String(blockedApps.length)} icon={Ban} color="#f43f5e" />
         </Animated.View>
@@ -102,12 +134,23 @@ export default function AnalyticsScreen() {
           <BarChart
             data={HOURLY_DATA.map(d => ({ ...d, color: CATEGORY_META.productivity.color }))}
             config={{ height: 180, showLabels: false }}
+            selectedIndex={selectedHour}
+            onBarPress={onHourPress}
           />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
             {['00h', '06h', '12h', '18h', '23h'].map(h => (
               <Text key={h} variant="caption" style={{ fontSize: 10 }}>{h}</Text>
             ))}
           </View>
+        </ChartContainer>
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.delay(360).duration(400)}>
+        <ChartContainer title={t('evolution7d')} description={t('evolution7dDesc')}>
+          <BarChart
+            data={WEEKLY_DATA.map(d => ({ ...d, color: violet }))}
+            config={{ height: 160, showLabels: true }}
+          />
         </ChartContainer>
       </Animated.View>
 
@@ -149,11 +192,23 @@ export default function AnalyticsScreen() {
 
           <Separator style={{ marginVertical: 16 }} />
 
-          <Text style={{ fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 }}>
-            {t('history')}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+              {selectedHour === null ? t('history') : `${t('history')} · ${selectedHour}h-${selectedHour + 1}h`}
+            </Text>
+            {selectedHour !== null && (
+              <Pressable onPress={() => setSelectedHour(null)}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: violet }}>Tout afficher</Text>
+              </Pressable>
+            )}
+          </View>
           <View style={{ marginTop: 12, gap: 4 }}>
-            {HISTORY_ENTRIES.map(entry => {
+            {displayedHistory.length === 0 && (
+              <Text variant="caption" style={{ fontSize: 12, paddingVertical: 12, textAlign: 'center' }}>
+                {t('noActivity')}
+              </Text>
+            )}
+            {displayedHistory.map(entry => {
               const meta = CATEGORY_META[entry.category]
               const EntryIcon = entry.type === 'site' ? Globe : null
               return (
@@ -207,6 +262,7 @@ export default function AnalyticsScreen() {
           </View>
         </Animated.View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }

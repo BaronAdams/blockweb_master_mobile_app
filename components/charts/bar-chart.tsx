@@ -31,9 +31,11 @@ type Props = {
   data: ChartDataPoint[];
   config?: ChartConfig;
   style?: ViewStyle;
+  selectedIndex?: number | null;
+  onBarPress?: (index: number, item: ChartDataPoint) => void;
 };
 
-export const BarChart = ({ data, config = {}, style }: Props) => {
+export const BarChart = ({ data, config = {}, style, selectedIndex = null, onBarPress }: Props) => {
   const [containerWidth, setContainerWidth] = useState(300);
 
   const {
@@ -88,14 +90,29 @@ export const BarChart = ({ data, config = {}, style }: Props) => {
             y: height - padding - animationProgress.value * barHeight,
           }));
 
+          const isDimmed = selectedIndex != null && selectedIndex !== index;
+
           return (
             <G key={`bar-${index}`}>
+              {/* Wider invisible hit target so thin bars stay easy to tap */}
+              {onBarPress && (
+                <Rect
+                  x={x - barSpacing / 2}
+                  y={0}
+                  width={barWidth + barSpacing}
+                  height={height}
+                  fill='transparent'
+                  onPress={() => onBarPress(index, item)}
+                />
+              )}
               <AnimatedRect
                 x={x}
                 width={barWidth}
                 fill={item.color || primaryColor}
+                opacity={isDimmed ? 0.3 : 1}
                 rx={4}
                 animatedProps={barAnimatedProps}
+                onPress={onBarPress ? () => onBarPress(index, item) : undefined}
               />
 
               {showLabels && (

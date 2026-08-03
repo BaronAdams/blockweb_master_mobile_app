@@ -2,6 +2,7 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
 import { BORDER_RADIUS, CORNERS, FONT_SIZE, HEIGHT } from '@/theme/globals';
+import { withInterFont } from '@/theme/fonts';
 import { LucideProps } from 'lucide-react-native';
 import React, { forwardRef, ReactElement, useState } from 'react';
 import {
@@ -101,7 +102,7 @@ export const Input = forwardRef<TextInput, InputProps>(
       }
     };
 
-    const getInputStyle = (): TextStyle => ({
+    const getInputStyle = (): TextStyle => withInterFont({
       flex: 1,
       fontSize: FONT_SIZE,
       lineHeight: isTextarea ? 20 : undefined,
@@ -511,14 +512,14 @@ export const GroupedInputItem = forwardRef<TextInput, GroupedInputItemProps>(
                 multiline
                 numberOfLines={rows}
                 style={[
-                  {
+                  withInterFont({
                     fontSize: FONT_SIZE,
                     lineHeight: 20,
                     color: disabled ? muted : error ? danger : text,
                     textAlignVertical: 'top',
                     paddingVertical: 0,
                     minHeight: rows * 20,
-                  },
+                  }),
                   inputStyle,
                 ]}
                 placeholderTextColor={error ? danger + '99' : muted}
@@ -576,12 +577,12 @@ export const GroupedInputItem = forwardRef<TextInput, GroupedInputItemProps>(
                 <TextInput
                   ref={ref}
                   style={[
-                    {
+                    withInterFont({
                       flex: 1,
                       fontSize: FONT_SIZE,
                       color: disabled ? muted : error ? danger : text,
                       paddingVertical: 0,
-                    },
+                    }),
                     inputStyle,
                   ]}
                   placeholder={placeholder}

@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { SearchBar } from '@/components/ui/searchbar'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { AppRow } from '@/components/AppRow'
+import { AppHeader } from '@/components/AppHeader'
 import { useColor } from '@/hooks/useColor'
 import { useInstalledApps } from '@/hooks/useInstalledApps'
 import { useAppStore } from '@/store/useAppStore'
@@ -97,7 +98,9 @@ export default function BlockListsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: background, paddingTop: 60, paddingHorizontal: 20 }}>
+    <View style={{ flex: 1, backgroundColor: background }}>
+      <AppHeader />
+      <View style={{ flex: 1, paddingTop: 20, paddingHorizontal: 20 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text variant="title">{t('title')}</Text>
         <Button
@@ -261,6 +264,7 @@ export default function BlockListsScreen() {
           )}
         </TabsContent>
       </Tabs>
+      </View>
     </View>
   )
 }

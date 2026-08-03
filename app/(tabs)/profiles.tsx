@@ -12,6 +12,7 @@ import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
 import { formatMinutes } from '@/utils/analytics'
 import { PROFILE_TYPE_META } from '@/lib/profileTypes'
+import { AppHeader } from '@/components/AppHeader'
 import type { LimiterProfile } from '@/types'
 
 export default function ProfilesScreen() {
@@ -21,26 +22,29 @@ export default function ProfilesScreen() {
   const profiles = useAppStore(s => s.limiterProfiles)
 
   return (
-    <View style={{ flex: 1, backgroundColor: background, paddingTop: 60, paddingHorizontal: 20 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Text variant="title">{t('title')}</Text>
-        <Button variant="outline" size="sm" onPress={() => router.push('/profiles/create')}>
-          {t('create')}
-        </Button>
-      </View>
+    <View style={{ flex: 1, backgroundColor: background }}>
+      <AppHeader />
+      <View style={{ flex: 1, paddingTop: 20, paddingHorizontal: 20 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <Text variant="title">{t('title')}</Text>
+          <Button variant="outline" size="sm" onPress={() => router.push('/profiles/create')}>
+            {t('create')}
+          </Button>
+        </View>
 
-      <FlatList
-        data={profiles}
-        keyExtractor={item => item.id}
-        contentContainerStyle={{ gap: 12, paddingBottom: 40 }}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        renderItem={({ item }) => <ProfileCard profile={item} onPress={() => router.push(`/profiles/${item.id}`)} />}
-        ListEmptyComponent={
-          <Text variant="caption" style={{ textAlign: 'center', marginTop: 40 }}>
-            {t('noProfileDesc')}
-          </Text>
-        }
-      />
+        <FlatList
+          data={profiles}
+          keyExtractor={item => item.id}
+          contentContainerStyle={{ gap: 12, paddingBottom: 40 }}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          renderItem={({ item }) => <ProfileCard profile={item} onPress={() => router.push(`/profiles/${item.id}`)} />}
+          ListEmptyComponent={
+            <Text variant="caption" style={{ textAlign: 'center', marginTop: 40 }}>
+              {t('noProfileDesc')}
+            </Text>
+          }
+        />
+      </View>
     </View>
   )
 }

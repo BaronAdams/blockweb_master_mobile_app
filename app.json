@@ -2,6 +2,7 @@
   "expo": {
     "name": "blockweb_master_mobile_app",
     "slug": "blockweb_master_mobile_app",
+    "owner": "baron_adams",
     "version": "1.0.0",
     "scheme": "blockweb-master-mobile-app",
     "orientation": "portrait",
@@ -54,6 +55,12 @@
           "color": "#f59e0b"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1d61e244-0f1e-424b-b830-c2da148dadc7"
+      }
+    }
   }
 }

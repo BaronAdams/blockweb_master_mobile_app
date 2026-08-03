@@ -1,6 +1,6 @@
 import { useColor } from '@/hooks/useColor';
 import { FONT_SIZE } from '@/theme/globals';
-import { withAndroidInterFont } from '@/theme/fonts';
+import { withInterFont } from '@/theme/fonts';
 import React, { forwardRef } from 'react';
 import {
   StyleSheet,
@@ -82,7 +82,7 @@ export const Text = forwardRef<RNText, TextProps>(
     const combinedStyle = StyleSheet.flatten([getTextStyle(), style]) as TextStyle;
 
     return (
-      <RNText ref={ref} style={withAndroidInterFont(combinedStyle)} {...props}>
+      <RNText ref={ref} style={withInterFont(combinedStyle)} {...props}>
         {children}
       </RNText>
     );

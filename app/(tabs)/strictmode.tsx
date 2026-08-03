@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { CountdownCell } from '@/components/CountdownCell'
 import { SectionTitle } from '@/components/SectionTitle'
+import { AppHeader } from '@/components/AppHeader'
 import { useColor } from '@/hooks/useColor'
 import { useStrictMode } from '@/hooks/useStrictMode'
 import { useAppStore } from '@/store/useAppStore'
@@ -51,10 +52,12 @@ export default function StrictModeScreen() {
   const restrictions = [t('r1'), t('r2'), tp('unableDeactivateStrict')]
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: background }}
-      contentContainerStyle={{ padding: 20, paddingTop: 60, paddingBottom: 40, gap: 20 }}
-    >
+    <View style={{ flex: 1, backgroundColor: background }}>
+      <AppHeader />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}
+      >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="title">{t('title')}</Text>
         <Badge variant={isActive ? 'destructive' : 'outline'}>
@@ -162,6 +165,7 @@ export default function StrictModeScreen() {
           ))}
         </Accordion>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }

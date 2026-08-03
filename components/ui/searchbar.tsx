@@ -3,6 +3,7 @@ import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
 import { useColor } from '@/hooks/useColor';
 import { CORNERS, FONT_SIZE, HEIGHT } from '@/theme/globals';
+import { withInterFont } from '@/theme/fonts';
 import { Search, X } from 'lucide-react-native';
 import React, { useCallback, useRef, useState } from 'react';
 import {
@@ -92,12 +93,12 @@ export function SearchBar({
     borderRadius: CORNERS,
   };
 
-  const baseInputStyle = {
+  const baseInputStyle = withInterFont({
     flex: 1,
     fontSize: FONT_SIZE,
     color: textColor,
     marginHorizontal: 8,
-  };
+  });
 
   const displayValue = value !== undefined ? value : internalValue;
   const showClear = showClearButton && displayValue.length > 0;

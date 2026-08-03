@@ -14,6 +14,9 @@ import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium'
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold'
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold'
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold'
+// Header wordmark ("BlockWeb Master") uses Montserrat Bold, matching the
+// extension's sidebar logo — only this one weight is needed.
+import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold'
 import { ThemeProvider } from '@/theme/theme-provider'
 import { supabase } from '@/lib/supabase'
 import { fetchSubscription } from '@/lib/subscription'
@@ -38,12 +41,10 @@ if (Platform.OS !== 'web') {
 export default function RootLayout() {
   const { user, setUser, setSubscription } = useAppStore()
   const [sessionLoaded, setSessionLoaded] = useState(false)
-  // Inter is only loaded/applied on Android — iOS keeps the native system font.
-  const [fontsLoaded] = useFonts(
-    Platform.OS === 'android'
-      ? { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold }
-      : {}
-  )
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold,
+    Montserrat_700Bold,
+  })
 
   useEffect(() => {
     const syncUser = async (session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
