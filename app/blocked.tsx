@@ -1,11 +1,52 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Lock, ShieldAlert, Sun, Clock, Calendar, Shield, ShieldCheck, type LucideIcon } from 'lucide-react-native'
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Button } from '@/components/ui/button'
 import { useColor } from '@/hooks/useColor'
+
+// Mirrors the extension's blocked page (blocked/App.css): the lock icon
+// floats (.lock-float, 6s), the glow behind it pulses (.glow-pulse, 4s),
+// and the badge bounces with its dot pulsing (Tailwind `animate-[bounce_5s]`
+// + `animate-pulse`). Reimplemented here with reanimated shared values since
+// there's no CSS keyframes equivalent in React Native.
+function useFloat() {
+  const translateY = useSharedValue(0)
+  useEffect(() => {
+    translateY.value = withRepeat(withTiming(-12, { duration: 3000, easing: Easing.inOut(Easing.ease) }), -1, true)
+  }, [])
+  return useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }))
+}
+
+function useGlowPulse() {
+  const progress = useSharedValue(0)
+  useEffect(() => {
+    progress.value = withRepeat(withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }), -1, true)
+  }, [])
+  return useAnimatedStyle(() => ({
+    opacity: 0.1 + progress.value * 0.15,
+    transform: [{ scale: 0.95 + progress.value * 0.15 }],
+  }))
+}
+
+function useBadgeBounce() {
+  const translateY = useSharedValue(0)
+  useEffect(() => {
+    translateY.value = withRepeat(withTiming(-4, { duration: 2500, easing: Easing.inOut(Easing.ease) }), -1, true)
+  }, [])
+  return useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }))
+}
+
+function useDotPulse() {
+  const opacity = useSharedValue(1)
+  useEffect(() => {
+    opacity.value = withRepeat(withTiming(0.4, { duration: 1000, easing: Easing.inOut(Easing.ease) }), -1, true)
+  }, [])
+  return useAnimatedStyle(() => ({ opacity: opacity.value }))
+}
 
 type BlockReason = 'app' | 'keyword' | 'adult' | 'daily' | 'hourly' | 'weekly' | 'interval'
 
@@ -48,6 +89,11 @@ export default function BlockedScreen() {
     ? t(meta.descKey, { name: value })
     : t(meta.descKey)
 
+  const floatStyle = useFloat()
+  const glowStyle = useGlowPulse()
+  const badgeStyle = useBadgeBounce()
+  const dotStyle = useDotPulse()
+
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
       <View style={{ flex: 1, padding: 24, paddingTop: 60, alignItems: 'center' }}>
@@ -65,35 +111,43 @@ export default function BlockedScreen() {
         </View>
 
         <View style={{ alignItems: 'center', marginBottom: 28 }}>
-          <View
-            style={{
-              position: 'absolute',
-              width: 140, height: 140, borderRadius: 70,
-              backgroundColor: meta.color,
-              opacity: 0.15,
-            }}
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                width: 140, height: 140, borderRadius: 70,
+                backgroundColor: meta.color,
+              },
+              glowStyle,
+            ]}
           />
-          <View
-            style={{
-              width: 88, height: 88, borderRadius: 44,
-              backgroundColor: '#ffffff0D',
-              borderWidth: 1, borderColor: '#ffffff1A',
-              alignItems: 'center', justifyContent: 'center',
-            }}
+          <Animated.View
+            style={[
+              {
+                width: 88, height: 88, borderRadius: 44,
+                backgroundColor: '#ffffff0D',
+                borderWidth: 1, borderColor: '#ffffff1A',
+                alignItems: 'center', justifyContent: 'center',
+              },
+              floatStyle,
+            ]}
           >
             <Icon size={36} color={meta.color} strokeWidth={1.6} />
-          </View>
-          <View
-            style={{
-              position: 'absolute', top: -6, right: -18,
-              flexDirection: 'row', alignItems: 'center', gap: 5,
-              backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a',
-              borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4,
-            }}
+          </Animated.View>
+          <Animated.View
+            style={[
+              {
+                position: 'absolute', top: -6, right: -18,
+                flexDirection: 'row', alignItems: 'center', gap: 5,
+                backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a',
+                borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4,
+              },
+              badgeStyle,
+            ]}
           >
-            <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: meta.color }} />
+            <Animated.View style={[{ width: 5, height: 5, borderRadius: 3, backgroundColor: meta.color }, dotStyle]} />
             <Text style={{ fontSize: 9, fontWeight: '600', color: meta.color }}>{t(meta.badgeKey)}</Text>
-          </View>
+          </Animated.View>
         </View>
 
         <Text variant="title" style={{ textAlign: 'center', marginBottom: 10 }}>{t(meta.titleKey)}</Text>
