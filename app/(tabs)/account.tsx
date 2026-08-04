@@ -1,7 +1,7 @@
 import { Pressable, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, Check, Smartphone, Sun, Moon } from 'lucide-react-native'
+import { ChevronRight, Check, Smartphone, Sun, Moon, LogOut, Trash2 } from 'lucide-react-native'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Card } from '@/components/ui/card'
@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { AlertDialog, useAlertDialog } from '@/components/ui/alert-dialog'
 import { SectionTitle } from '@/components/SectionTitle'
+import { DangerButton } from '@/components/DangerButton'
 import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
 import { useModeContext, type Mode } from '@/providers/mode-provider'
@@ -135,11 +136,10 @@ export default function AccountScreen() {
 
       <View>
         <SectionTitle style={{ marginBottom: 8, marginLeft: 4, color: red }}>{t('permanentDeletion')}</SectionTitle>
-        <Card style={{ padding: 0, backgroundColor: red + '0D', borderColor: red + '33' }}>
-          <SettingsRow label={t('signOut')} onPress={logoutDialog.open} color={red} />
-          <Separator />
-          <SettingsRow label={t('deleteMyAccount')} onPress={deleteDialog.open} color={red} />
-        </Card>
+        <View style={{ gap: 10 }}>
+          <DangerButton label={t('signOut')} icon={LogOut} onPress={logoutDialog.open} />
+          <DangerButton label={t('deleteMyAccount')} icon={Trash2} onPress={deleteDialog.open} />
+        </View>
       </View>
 
       <AlertDialog
@@ -168,13 +168,11 @@ function SettingsRow({
   right,
   showChevron,
   onPress,
-  color,
 }: {
   label: string
   right?: React.ReactNode
   showChevron?: boolean
   onPress?: () => void
-  color?: string
 }) {
   return (
     <Pressable
@@ -187,7 +185,7 @@ function SettingsRow({
         minHeight: 48,
       }}
     >
-      <Text style={{ flex: 1, fontSize: 14, color }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 14 }}>{label}</Text>
       {right}
       {showChevron && <ChevronRight size={18} color="#71717a" />}
     </Pressable>

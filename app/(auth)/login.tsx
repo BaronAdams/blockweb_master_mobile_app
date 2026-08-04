@@ -7,7 +7,7 @@ import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { AppHeader } from '@/components/AppHeader'
+import { AppLogo } from '@/components/AppLogo'
 import { useColor } from '@/hooks/useColor'
 import { supabase } from '@/lib/supabase'
 
@@ -35,14 +35,14 @@ export default function LoginScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
-      <AppHeader />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
-        <View style={{ alignItems: 'center', marginBottom: 40 }}>
-          <Text variant="title">{t('signIn')}</Text>
+        <View style={{ alignItems: 'center', marginBottom: 32 }}>
+          <AppLogo size={56} />
+          <Text variant="subtitle" style={{ marginTop: 18 }}>{t('signIn')}</Text>
           <Text variant="caption" style={{ marginTop: 4 }}>{t('tagline')}</Text>
         </View>
 

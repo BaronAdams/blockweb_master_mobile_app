@@ -9,12 +9,14 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.blockwebmaster.app",
       "supportsTablet": true,
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "BlockWeb Master utilise les notifications pour t'alerter quand une limite de temps est atteinte ou quand le Strict Mode expire."
       }
     },
     "android": {
+      "package": "com.blockwebmaster.app",
       "adaptiveIcon": {
         "backgroundColor": "#09090b",
         "foregroundImage": "./assets/android-icon-foreground.png",

@@ -317,6 +317,7 @@
   "profiles": {
     "title": "Profils Limiteurs",
     "newProfile": "Nouveau Profil",
+    "chooseTypeDesc": "Choisissez le type de limite que vous voulez mettre en place.",
     "yrProfiles": "Vos Profils",
     "noProfile": "Aucun profil créé",
     "profileNotExists": "Ce profil n'existe pas.",
