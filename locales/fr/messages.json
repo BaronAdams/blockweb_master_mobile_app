@@ -307,7 +307,12 @@
     "frozen": "gelé(s)",
     "upgradePremiumToActivate": "passez à Premium pour les réactiver.",
     "domain": "domaine",
-    "keyword": "mot-clé"
+    "keyword": "mot-clé",
+    "applications": "Applications",
+    "applicationsDesc": "Sélectionnez les applis à bloquer, puis confirmez.",
+    "noApp": "Aucune application trouvée.",
+    "searchApp": "Rechercher une application…",
+    "confirmSelection": "Confirmer ({{n}})"
   },
   "profiles": {
     "title": "Profils Limiteurs",
@@ -544,7 +549,11 @@
     "status": "Statut",
     "expiration": "Expiration",
     "expired": "Expiré",
-    "active": "Actif"
+    "active": "Actif",
+    "appearance": "Apparence",
+    "themeSystem": "Système",
+    "themeLight": "Clair",
+    "themeDark": "Sombre"
   },
   "pricing": {
     "title": "Choisissez votre plan",

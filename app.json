@@ -7,7 +7,7 @@
     "scheme": "blockweb-master-mobile-app",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -42,10 +42,14 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/android-icon-foreground.png",
+          "imageWidth": 140,
           "resizeMode": "contain",
-          "backgroundColor": "#09090b"
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "image": "./assets/android-icon-foreground.png",
+            "backgroundColor": "#000000"
+          }
         }
       ],
       "expo-localization",

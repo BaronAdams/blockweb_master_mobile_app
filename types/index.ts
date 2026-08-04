@@ -72,6 +72,8 @@ export type StrictModeState = {
 
 export type UserPlan = 'free' | 'monthly' | 'yearly' | 'lifetime'
 
+export type ThemePreference = 'system' | 'light' | 'dark'
+
 export type SubscriptionState = {
   plan: UserPlan
   expiresAt: number | null
@@ -89,4 +91,5 @@ export type AppState = {
   plan: UserPlan
   subscription: SubscriptionState
   user: { email: string; username: string } | null
+  themePreference: ThemePreference
 }

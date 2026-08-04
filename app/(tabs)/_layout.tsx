@@ -1,14 +1,20 @@
 import { Tabs } from 'expo-router'
 import { BarChart3, Ban, Timer, Shield, User } from 'lucide-react-native'
+import { useColor } from '@/hooks/useColor'
 
 export default function TabLayout() {
+  const background = useColor('background')
+  const border = useColor('border')
+  const primary = useColor('primary')
+  const mutedForeground = useColor('mutedForeground')
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#09090b',
-          borderTopColor: '#27272a',
+          backgroundColor: background,
+          borderTopColor: border,
           borderTopWidth: 0.5,
           height: 84,
           paddingBottom: 24,
@@ -18,8 +24,8 @@ export default function TabLayout() {
           fontSize: 10,
           fontWeight: '500',
         },
-        tabBarActiveTintColor: '#f59e0b',
-        tabBarInactiveTintColor: '#71717a',
+        tabBarActiveTintColor: primary,
+        tabBarInactiveTintColor: mutedForeground,
       }}
     >
       <Tabs.Screen

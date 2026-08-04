@@ -1,12 +1,13 @@
 import 'react-native-gesture-handler'
 import '@/lib/i18n'
 import { useEffect, useState } from 'react'
-import { Appearance, I18nManager, Platform } from 'react-native'
+import { I18nManager, Platform } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
 import i18n from '@/lib/i18n'
+import { useColorScheme } from '@/hooks/useColorScheme'
 // Imported from per-weight submodules (not the package root) so Metro only
 // bundles the weights we actually use, instead of all 18 Inter variants.
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular'
@@ -22,11 +23,6 @@ import { supabase } from '@/lib/supabase'
 import { fetchSubscription } from '@/lib/subscription'
 import { useAppStore } from '@/store/useAppStore'
 
-// Appearance.setColorScheme is a native-only API (unimplemented on web).
-if (Platform.OS !== 'web') {
-  Appearance.setColorScheme('dark')
-}
-
 // RTL layout for Arabic. RN only fully applies a forceRTL change after an
 // app reload, so this only takes effect from the next cold start once the
 // language changes — acceptable for a device-locale-driven default.
@@ -40,6 +36,7 @@ if (Platform.OS !== 'web') {
 
 export default function RootLayout() {
   const { user, setUser, setSubscription } = useAppStore()
+  const colorScheme = useColorScheme()
   const [sessionLoaded, setSessionLoaded] = useState(false)
   const [fontsLoaded] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold,
@@ -73,7 +70,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <StatusBar style="light" />
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Protected guard={!!user}>
             <Stack.Screen name="(tabs)" />

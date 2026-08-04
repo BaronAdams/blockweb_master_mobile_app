@@ -307,7 +307,12 @@
     "frozen": "frozen",
     "upgradePremiumToActivate": "frozen — upgrade to Premium to reactivate.",
     "domain": "domain",
-    "keyword": "keyword"
+    "keyword": "keyword",
+    "applications": "Applications",
+    "applicationsDesc": "Select the apps to block, then confirm.",
+    "noApp": "No app found.",
+    "searchApp": "Search for an app…",
+    "confirmSelection": "Confirm ({{n}})"
   },
   "profiles": {
     "title": "Limiter Profiles",
@@ -544,7 +549,11 @@
     "status": "Status",
     "expiration": "Expiration",
     "expired": "Expired",
-    "active": "Active"
+    "active": "Active",
+    "appearance": "Appearance",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark"
   },
   "pricing": {
     "title": "Choose your plan",

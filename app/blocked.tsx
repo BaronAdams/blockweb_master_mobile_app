@@ -1,11 +1,12 @@
 import { useEffect, useMemo } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Lock, ShieldAlert, Sun, Clock, Calendar, Shield, ShieldCheck, type LucideIcon } from 'lucide-react-native'
+import { Lock, ShieldAlert, Sun, Clock, Calendar, Shield, type LucideIcon } from 'lucide-react-native'
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Button } from '@/components/ui/button'
+import { AppHeader } from '@/components/AppHeader'
 import { useColor } from '@/hooks/useColor'
 
 // Mirrors the extension's blocked page (blocked/App.css): the lock icon
@@ -71,9 +72,11 @@ const QUOTE_COUNT = 10
 
 export default function BlockedScreen() {
   const { t } = useTranslation('blocked')
-  const { t: tc } = useTranslation('common')
   const router = useRouter()
   const background = useColor('background')
+  const card = useColor('card')
+  const border = useColor('border')
+  const mutedForeground = useColor('mutedForeground')
   const params = useLocalSearchParams<{ reason?: string; value?: string }>()
 
   const reason: BlockReason = (params.reason as BlockReason) in REASON_META ? (params.reason as BlockReason) : 'app'
@@ -96,25 +99,15 @@ export default function BlockedScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
-      <View style={{ flex: 1, padding: 24, paddingTop: 60, alignItems: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 40 }}>
-          <View
-            style={{
-              width: 26, height: 26, borderRadius: 7,
-              backgroundColor: '#f59e0b1A',
-              alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <ShieldCheck size={14} color="#f59e0b" />
-          </View>
-          <Text style={{ fontSize: 13, fontWeight: '700' }}>{tc('appName')}</Text>
-        </View>
-
+      <AppHeader />
+      <View style={{ flex: 1, padding: 24, paddingTop: 40, alignItems: 'center' }}>
         <View style={{ alignItems: 'center', marginBottom: 28 }}>
           <Animated.View
             style={[
               {
                 position: 'absolute',
+                // Centered on the 88x88 icon circle below: (140 - 88) / 2 = 26.
+                top: -26, left: -26,
                 width: 140, height: 140, borderRadius: 70,
                 backgroundColor: meta.color,
               },
@@ -125,8 +118,8 @@ export default function BlockedScreen() {
             style={[
               {
                 width: 88, height: 88, borderRadius: 44,
-                backgroundColor: '#ffffff0D',
-                borderWidth: 1, borderColor: '#ffffff1A',
+                backgroundColor: card + 'B3',
+                borderWidth: 1, borderColor: border,
                 alignItems: 'center', justifyContent: 'center',
               },
               floatStyle,
@@ -139,7 +132,7 @@ export default function BlockedScreen() {
               {
                 position: 'absolute', top: -6, right: -18,
                 flexDirection: 'row', alignItems: 'center', gap: 5,
-                backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a',
+                backgroundColor: card, borderWidth: 1, borderColor: border,
                 borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4,
               },
               badgeStyle,
@@ -158,12 +151,12 @@ export default function BlockedScreen() {
         <View
           style={{
             width: '100%',
-            backgroundColor: '#18181b80',
-            borderWidth: 1, borderColor: '#ffffff0D',
+            backgroundColor: card + '80',
+            borderWidth: 1, borderColor: border,
             borderRadius: 14, padding: 16, gap: 12, marginBottom: 24,
           }}
         >
-          <Text style={{ fontSize: 10, fontWeight: '600', color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+          <Text style={{ fontSize: 10, fontWeight: '600', color: mutedForeground, textTransform: 'uppercase', letterSpacing: 0.6 }}>
             {t('securityDetails')}
           </Text>
           <DetailRow color={meta.color} label={reason === 'keyword' ? t('detectedKeyword') : 'Application'} value={value} />
@@ -177,11 +170,11 @@ export default function BlockedScreen() {
       </View>
 
       <View style={{ padding: 24, paddingBottom: 32, alignItems: 'center' }}>
-        <Text style={{ fontStyle: 'italic', fontSize: 12, color: '#52525b', textAlign: 'center', maxWidth: 280 }}>
+        <Text variant="caption" style={{ fontStyle: 'italic', fontSize: 12, textAlign: 'center', maxWidth: 280 }}>
           “{quote}”
         </Text>
         {!!quoteAuthor && (
-          <Text style={{ fontSize: 11, color: '#3f3f46', marginTop: 6 }}>— {quoteAuthor}</Text>
+          <Text variant="caption" style={{ fontSize: 11, marginTop: 6, opacity: 0.7 }}>— {quoteAuthor}</Text>
         )}
       </View>
     </View>

@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Mail, Lock, ShieldCheck } from 'lucide-react-native'
+import { Mail, Lock } from 'lucide-react-native'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { AppHeader } from '@/components/AppHeader'
 import { useColor } from '@/hooks/useColor'
 import { supabase } from '@/lib/supabase'
 
@@ -33,25 +34,14 @@ export default function RegisterScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={{ flex: 1, backgroundColor: background }}>
+      <AppHeader />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
         <View style={{ alignItems: 'center', marginBottom: 40 }}>
-          <View
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 18,
-              backgroundColor: primary + '26',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 16,
-            }}
-          >
-            <ShieldCheck color={primary} size={30} strokeWidth={1.8} />
-          </View>
           <Text variant="title">{t('createAccount')}</Text>
           <Text variant="caption" style={{ marginTop: 4 }}>{t('tagline')}</Text>
         </View>
@@ -99,6 +89,7 @@ export default function RegisterScreen() {
           </Link>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   )
 }

@@ -17,6 +17,10 @@ interface ChartConfig {
   padding?: number;
   showGrid?: boolean;
   showLabels?: boolean;
+  /** Only draw the x-axis label every Nth bar, so 24 hourly bars stay readable. */
+  labelEvery?: number;
+  /** Draw the value above each bar. Off by default when bars are dense (see labelEvery). */
+  showValues?: boolean;
   animated?: boolean;
   duration?: number;
 }
@@ -42,6 +46,8 @@ export const BarChart = ({ data, config = {}, style, selectedIndex = null, onBar
     height = 200,
     padding = 20,
     showLabels = true,
+    labelEvery = 1,
+    showValues = true,
     animated = true,
     duration = 800,
   } = config;
@@ -115,28 +121,28 @@ export const BarChart = ({ data, config = {}, style, selectedIndex = null, onBar
                 onPress={onBarPress ? () => onBarPress(index, item) : undefined}
               />
 
-              {showLabels && (
-                <>
-                  <SvgText
-                    x={x + barWidth / 2}
-                    y={height - 5}
-                    textAnchor='middle'
-                    fontSize={12}
-                    fill={mutedColor}
-                  >
-                    {item.label}
-                  </SvgText>
-                  <SvgText
-                    x={x + barWidth / 2}
-                    y={y - 5}
-                    textAnchor='middle'
-                    fontSize={11}
-                    fill={mutedColor}
-                    fontWeight='600'
-                  >
-                    {item.value}
-                  </SvgText>
-                </>
+              {showLabels && index % labelEvery === 0 && (
+                <SvgText
+                  x={x + barWidth / 2}
+                  y={height - 5}
+                  textAnchor='middle'
+                  fontSize={10}
+                  fill={mutedColor}
+                >
+                  {item.label}
+                </SvgText>
+              )}
+              {showValues && (
+                <SvgText
+                  x={x + barWidth / 2}
+                  y={y - 5}
+                  textAnchor='middle'
+                  fontSize={11}
+                  fill={mutedColor}
+                  fontWeight='600'
+                >
+                  {item.value}
+                </SvgText>
               )}
             </G>
           );
