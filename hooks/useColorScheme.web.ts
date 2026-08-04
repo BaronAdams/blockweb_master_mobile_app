@@ -1,22 +1,33 @@
 import { useEffect, useState } from 'react';
 import { useColorScheme as useRNColorScheme } from 'react-native';
-import { useAppStore } from '@/store/useAppStore';
+
+import { useModeContext } from '@/providers/mode-provider';
 
 /**
  * To support static rendering, this value needs to be re-calculated on the client side for web.
- * An explicit user choice ('light'/'dark') wins over the browser's setting; absent that (or
- * before hydration) it falls back to 'dark', matching the splash screen default.
+ *
+ * Mirrors the native variant: a mounted `ModeProvider` wins, falling back to the
+ * OS scheme. The provider is what makes the toggle work here at all —
+ * react-native-web's `Appearance` is read-only, exposing `getColorScheme` and
+ * `addChangeListener` but no setter, so nothing can push an override into the
+ * value `useRNColorScheme()` reports.
+ *
+ * React Native 0.86's `ColorSchemeName` includes `'unspecified'`, which the
+ * binary theme has no slot for, so it collapses here.
  */
-export function useColorScheme() {
+export function useColorScheme(): 'light' | 'dark' {
   const [hasHydrated, setHasHydrated] = useState(false);
+
   useEffect(() => {
     setHasHydrated(true);
   }, []);
 
-  const preference = useAppStore(s => s.themePreference);
-  const system = useRNColorScheme();
+  const system = useRNColorScheme() === 'dark' ? 'dark' : 'light';
+  const scheme = useModeContext()?.scheme ?? system;
 
-  if (!hasHydrated) return 'dark';
-  if (preference === 'light' || preference === 'dark') return preference;
-  return system ?? 'dark';
+  if (hasHydrated) {
+    return scheme;
+  }
+
+  return 'light';
 }

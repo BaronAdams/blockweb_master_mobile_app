@@ -2,11 +2,13 @@ import 'react-native-gesture-handler'
 import '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { I18nManager, Platform } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
 import i18n from '@/lib/i18n'
+import { ModeProvider } from '@/providers/mode-provider'
 import { useColorScheme } from '@/hooks/useColorScheme'
 // Imported from per-weight submodules (not the package root) so Metro only
 // bundles the weights we actually use, instead of all 18 Inter variants.
@@ -35,6 +37,14 @@ if (Platform.OS !== 'web') {
 }
 
 export default function RootLayout() {
+  return (
+    <ModeProvider storage={AsyncStorage} storageKey="blockweb-master.mode" defaultMode="system">
+      <RootLayoutNav />
+    </ModeProvider>
+  )
+}
+
+function RootLayoutNav() {
   const { user, setUser, setSubscription } = useAppStore()
   const colorScheme = useColorScheme()
   const [sessionLoaded, setSessionLoaded] = useState(false)
