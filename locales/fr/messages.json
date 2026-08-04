@@ -78,9 +78,12 @@
     "permissionsUsageDesc": "Nécessaire pour détecter quelle application est ouverte, afin d'appliquer les limites.",
     "permissionsOverlayTitle": "Affichage par-dessus d'autres applis",
     "permissionsOverlayDesc": "Nécessaire pour afficher l'écran de blocage par-dessus une application bloquée.",
+    "permissionsAccessibilityTitle": "Accessibilité",
+    "permissionsAccessibilityDesc": "Permet à BlockWeb Master de détecter en temps réel quelle appli ou quel site vous utilisez — c'est le vrai mécanisme qui applique le blocage et suit l'utilisation. Sans elle, vos règles sont enregistrées mais jamais appliquées.",
     "permissionsEnable": "Activer",
     "permissionsRequested": "Demandé",
-    "permissionsSkip": "Je le ferai plus tard"
+    "permissionsSkip": "Je le ferai plus tard",
+    "accessibilityDisabledWarning": "L'accessibilité est désactivée — cette règle est enregistrée mais pas encore appliquée."
   },
   "sidebar": {
     "analytics": "Analytiques",
@@ -240,6 +243,7 @@
     "compareActive": "Comparaison active",
     "noActivity": "Aucune activité enregistrée ce jour-là.",
     "noActivityHint": "L'historique horaire est disponible depuis la mise à jour.",
+    "trackingHint": "Activez l'accès à l'Accessibilité dans Permissions pour commencer à suivre l'utilisation de vos applis et sites.",
     "selected": "sélectionné",
     "selectedPlural": "sélectionnés",
     "whereTime": "Où va ton temps ?",

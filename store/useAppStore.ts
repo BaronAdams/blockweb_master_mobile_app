@@ -24,6 +24,11 @@ type AppStore = AppState & {
 
   recordUsage: (packageName: string, minutes: number) => void
   getTodayStats: () => DailyAnalytics | null
+  /** Overwrites each day's per-app usage with the native accessibility
+   *  service's totals (see hooks/useAppMonitor.ts) — those are already
+   *  cumulative for the day, so days present in `stats` are replaced, not
+   *  added to, to avoid double-counting. `blockedAttempts` is preserved. */
+  mergeUsageStats: (stats: Record<string, Record<string, number>>) => void
 
   activateStrictMode: (days: number) => void
   checkStrictExpiry: () => void
@@ -38,6 +43,7 @@ type AppStore = AppState & {
   logout: () => void
 
   completePermissionsOnboarding: () => void
+  setAccessibilityEnabled: (enabled: boolean) => void
 }
 
 const DEFAULT_SUBSCRIPTION: SubscriptionState = { plan: 'free', expiresAt: null, isValid: true }
@@ -57,6 +63,7 @@ export const useAppStore = create<AppStore>()(
       user: null,
       authCachedAt: null,
       hasSeenPermissionsOnboarding: false,
+      isAccessibilityEnabled: false,
 
       addBlockedApp: (app) => set(s => ({
         blockedApps: [...s.blockedApps, app]
@@ -172,6 +179,26 @@ export const useAppStore = create<AppStore>()(
         return get().analytics.find(a => a.date === today) ?? null
       },
 
+      mergeUsageStats: (stats) => {
+        const days = Object.keys(stats)
+        if (days.length === 0) return
+        set(s => {
+          const byDate = new Map(s.analytics.map(a => [a.date, a]))
+          for (const date of days) {
+            const appUsage = stats[date]
+            const totalMinutes = Object.values(appUsage).reduce((sum, m) => sum + m, 0)
+            const existing = byDate.get(date)
+            byDate.set(date, {
+              date,
+              appUsage,
+              totalMinutes,
+              blockedAttempts: existing?.blockedAttempts ?? 0,
+            })
+          }
+          return { analytics: Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date)) }
+        })
+      },
+
       activateStrictMode: (days) => {
         const now = Date.now()
         set({
@@ -196,6 +223,7 @@ export const useAppStore = create<AppStore>()(
       setAuthCachedAt: (authCachedAt) => set({ authCachedAt }),
       logout: () => set({ user: null, plan: 'free', subscription: DEFAULT_SUBSCRIPTION, authCachedAt: null }),
       completePermissionsOnboarding: () => set({ hasSeenPermissionsOnboarding: true }),
+      setAccessibilityEnabled: (isAccessibilityEnabled) => set({ isAccessibilityEnabled }),
     }),
     {
       name: 'blockweb-master-storage',

@@ -1,104 +1,89 @@
-import { useMemo, useState } from 'react'
-import { Pressable, ScrollView } from 'react-native'
+import { useMemo } from 'react'
+import { ScrollView } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import { Ban, Globe, Hash, Hourglass, Eye } from 'lucide-react-native'
+import { Ban, Globe, Hash, Hourglass } from 'lucide-react-native'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { StatCard } from '@/components/StatCard'
 import { AppHeader } from '@/components/AppHeader'
+import { AccessibilityWarningBanner } from '@/components/AccessibilityWarningBanner'
 import { EntryIcon } from '@/components/EntryIcon'
-import { BarChart } from '@/components/charts/bar-chart'
 import { LineChart } from '@/components/charts/line-chart'
 import { DoughnutChart } from '@/components/charts/doughnut-chart'
 import { ChartContainer } from '@/components/charts/chart-container'
 import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
-import { formatMinutes } from '@/utils/analytics'
-import { CATEGORY_META, CATEGORY_ORDER } from '@/lib/categories'
-import type { SiteCategory } from '@/lib/categories'
+import { formatMinutes, getCategoryBreakdown } from '@/utils/analytics'
+import { CATEGORY_META } from '@/lib/categories'
 
-const HOURLY_DATA = Array.from({ length: 24 }, (_, h) => {
-  let minutes = 0
-  if (h >= 19 && h <= 22) minutes = 22
-  else if (h >= 12 && h <= 14) minutes = 14
-  else if (h >= 8 && h <= 11) minutes = 8
-  return { label: `${h}h`, value: minutes }
-})
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const dateKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 
-// Demo total screen time per day for the last 7 days — mirrors the
-// extension's "evolution7d" line chart until real usage-tracking lands
-// (LOGIC.md phase 2: mock data first).
-const WEEKLY_DATA = [
-  { label: 'Lun', value: 145 },
-  { label: 'Mar', value: 98 },
-  { label: 'Mer', value: 172 },
-  { label: 'Jeu', value: 130 },
-  { label: 'Ven', value: 205 },
-  { label: 'Sam', value: 88 },
-  { label: 'Dim', value: 161 },
-]
-
-// Demo split across the 5 real categories — adult included so the layout
-// and warning banners are representative even with mocked data.
-const CATEGORY_VALUES: Record<string, number> = {
-  distraction: 38,
-  productivity: 41,
-  entertainment: 9,
-  other: 6,
-  adult: 6,
-}
-// Static demo total until real usage-tracking is wired (LOGIC.md phase 2).
-const VISITS_TODAY = 9
-
-// Combined app + website browsing history — mirrors the extension's
-// Analytics history table (site/app, category, time), broken down per hour
-// so a click on an hourly bar can filter it (1 bar = 1 hour). Real
-// per-item tracking lands in a later phase (see LOGIC.md — mock data first).
-type HistoryEntry = { name: string; type: 'app' | 'site'; category: SiteCategory; hourly: Record<number, number> }
-const HISTORY_ENTRIES: HistoryEntry[] = [
-  { name: 'Instagram', type: 'app', category: 'distraction', hourly: { 20: 20, 21: 14 } },
-  { name: 'Notion', type: 'app', category: 'productivity', hourly: { 9: 22, 10: 18 } },
-  { name: 'YouTube', type: 'app', category: 'entertainment', hourly: { 21: 14 } },
-  { name: 'tiktok.com', type: 'site', category: 'distraction', hourly: { 19: 15, 20: 12 } },
-  { name: 'github.com', type: 'site', category: 'productivity', hourly: { 9: 26 } },
-  { name: 'weather.com', type: 'site', category: 'other', hourly: { 13: 10 } },
-  { name: 'site-restreint.com', type: 'site', category: 'adult', hourly: { 22: 10 } },
-]
-const entryTotalMinutes = (e: HistoryEntry) => Object.values(e.hourly).reduce((s, m) => s + m, 0)
+const CATEGORY_ORDER_4 = ['distraction', 'entertainment', 'productivity', 'other'] as const
 
 export default function AnalyticsScreen() {
   const { t } = useTranslation('analytics')
   const { t: tc, i18n } = useTranslation('common')
   const background = useColor('background')
+  const border = useColor('border')
+  const mutedForeground = useColor('mutedForeground')
   const violet = CATEGORY_META.distraction.color
 
   const blockedApps = useAppStore(s => s.blockedApps)
   const blockedKeywords = useAppStore(s => s.blockedKeywords)
   const blockedWebsites = useAppStore(s => s.blockedWebsites)
   const limiterProfiles = useAppStore(s => s.limiterProfiles)
+  const analytics = useAppStore(s => s.analytics)
   const activeProfileCount = limiterProfiles.filter(p => p.isActive).length
 
   const todayLabel = new Date().toLocaleDateString(i18n.language, { day: 'numeric', month: 'long' })
-  const categoryData = CATEGORY_ORDER
-    .filter(cat => CATEGORY_VALUES[cat] > 0)
-    .map(cat => ({ label: tc(CATEGORY_META[cat].labelKey), value: CATEGORY_VALUES[cat], color: CATEGORY_META[cat].color }))
-  const distractionPct = CATEGORY_VALUES.distraction
+  const today = dateKey(new Date())
+  // `analytics` is populated by mergeUsageStats() (see hooks/useAppMonitor.ts),
+  // fed by the real native AccessibilityService (modules/blocker) — it's
+  // empty until that service is enabled and has observed some usage, not
+  // mock data standing in for it. Every section below shows an honest
+  // "not tracked" state instead of fabricated numbers when it's empty.
+  const todayRecord = analytics.find(a => a.date === today) ?? null
 
-  const [selectedHour, setSelectedHour] = useState<number | null>(null)
-  const onHourPress = (index: number) => setSelectedHour(prev => (prev === index ? null : index))
+  const categoryTotals = todayRecord ? getCategoryBreakdown(todayRecord.appUsage, []) : null
+  const categoryTotal = categoryTotals ? Object.values(categoryTotals).reduce((a, b) => a + b, 0) : 0
+  const categoryData = categoryTotals
+    ? CATEGORY_ORDER_4
+        .filter(cat => categoryTotals[cat] > 0)
+        .map(cat => ({
+          cat,
+          label: tc(CATEGORY_META[cat].labelKey),
+          emoji: CATEGORY_META[cat].emoji,
+          value: categoryTotals[cat],
+          color: CATEGORY_META[cat].color,
+        }))
+    : []
+  const productivityPct = categoryTotal > 0 ? Math.round(((categoryTotals?.productivity ?? 0) / categoryTotal) * 100) : 0
+  const distractionPct = categoryTotal > 0 ? Math.round(((categoryTotals?.distraction ?? 0) / categoryTotal) * 100) : 0
 
-  const displayedHistory = useMemo(() => {
-    if (selectedHour === null) {
-      return HISTORY_ENTRIES
-        .map(e => ({ ...e, minutes: entryTotalMinutes(e) }))
-        .sort((a, b) => b.minutes - a.minutes)
-    }
-    return HISTORY_ENTRIES
-      .filter(e => (e.hourly[selectedHour] ?? 0) > 0)
-      .map(e => ({ ...e, minutes: e.hourly[selectedHour] }))
+  const historyEntries = useMemo(() => {
+    if (!todayRecord) return []
+    return Object.entries(todayRecord.appUsage)
+      .map(([packageName, minutes]) => ({
+        name: blockedApps.find(a => a.packageName === packageName)?.appName ?? packageName,
+        minutes,
+      }))
       .sort((a, b) => b.minutes - a.minutes)
-  }, [selectedHour])
+  }, [todayRecord, blockedApps])
+
+  const last7Days = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6 - i))
+    const key = dateKey(d)
+    const record = analytics.find(a => a.date === key)
+    return {
+      x: key,
+      y: record?.totalMinutes ?? 0,
+      label: d.toLocaleDateString(i18n.language, { weekday: 'short' }),
+    }
+  }), [analytics, i18n.language])
+  const hasWeeklyData = last7Days.some(d => d.y > 0)
 
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
@@ -111,6 +96,8 @@ export default function AnalyticsScreen() {
           <Text variant="title">{t('title')}</Text>
           <Text variant="caption" style={{ marginTop: 2 }}>{`${tc('today')} · ${todayLabel}`}</Text>
         </View>
+
+        <AccessibilityWarningBanner active={blockedApps.length > 0} />
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
         <Animated.View entering={FadeInDown.delay(0).duration(400)} style={{ width: '48%' }}>
@@ -125,109 +112,87 @@ export default function AnalyticsScreen() {
         <Animated.View entering={FadeInDown.delay(180).duration(400)} style={{ width: '48%' }}>
           <StatCard label={t('activeProfiles')} value={String(activeProfileCount)} icon={Hourglass} color="#34d399" />
         </Animated.View>
-        <Animated.View entering={FadeInDown.delay(240).duration(400)} style={{ width: '48%' }}>
-          <StatCard label={t('visits')} value={String(VISITS_TODAY)} icon={Eye} color="#60a5fa" />
-        </Animated.View>
       </View>
 
-      {/* Bar chart horaire — un label toutes les 2h (12 labels) pour rester lisible sur 24 barres */}
-      <Animated.View entering={FadeInDown.delay(320).duration(400)}>
-        <ChartContainer title={t('hourlyChart')} description={t('hourlyDesc')}>
-          <BarChart
-            data={HOURLY_DATA.map(d => ({ ...d, color: CATEGORY_META.productivity.color }))}
-            config={{ height: 180, showLabels: true, labelEvery: 2, showValues: false }}
-            selectedIndex={selectedHour}
-            onBarPress={onHourPress}
-          />
-        </ChartContainer>
-      </Animated.View>
-
-      {/* Historique de navigation — juste après le bar chart horaire */}
-      <Animated.View entering={FadeInDown.delay(360).duration(400)}>
-        <ChartContainer title={t('history')}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              {selectedHour === null ? t('today') : `${selectedHour}h-${selectedHour + 1}h`}
-            </Text>
-            {selectedHour !== null && (
-              <Pressable onPress={() => setSelectedHour(null)}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: violet }}>Tout afficher</Text>
-              </Pressable>
-            )}
-          </View>
-          <View style={{ marginTop: 8, gap: 4 }}>
-            {displayedHistory.length === 0 && (
-              <Text variant="caption" style={{ fontSize: 12, paddingVertical: 12, textAlign: 'center' }}>
-                {t('noActivity')}
-              </Text>
-            )}
-            {displayedHistory.map(entry => {
-              const meta = CATEGORY_META[entry.category]
-              return (
+      {/* Historique de navigation — données réelles (store.analytics), alimentées par le vrai moteur natif (modules/blocker) via mergeUsageStats() */}
+      <Animated.View entering={FadeInDown.delay(260).duration(400)}>
+        <ChartContainer title={t('history')} description={`${tc('today')} · ${todayLabel}`}>
+          {historyEntries.length === 0 ? (
+            <EmptyChartState label={t('noNavigation')} hint={t('trackingHint')} borderColor={border} />
+          ) : (
+            <View style={{ gap: 4 }}>
+              {historyEntries.map(entry => (
                 <View key={entry.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }}>
-                  <EntryIcon name={entry.name} type={entry.type} color={meta.color} />
+                  <EntryIcon name={entry.name} type="app" color={violet} />
                   <Text style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>{entry.name}</Text>
-                  <Text style={{ fontSize: 13 }}>{meta.emoji}</Text>
-                  <Text variant="caption" style={{ fontSize: 12, fontFamily: 'monospace', width: 44, textAlign: 'right' }}>
-                    {formatMinutes(entry.minutes)}
-                  </Text>
+                  <Text variant="caption" style={{ fontSize: 12, fontFamily: 'monospace' }}>{formatMinutes(entry.minutes)}</Text>
                 </View>
-              )
-            })}
-          </View>
+              ))}
+            </View>
+          )}
         </ChartContainer>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+      <Animated.View entering={FadeInDown.delay(320).duration(400)}>
         <ChartContainer title={t('whereTime')}>
-          <View style={{ alignItems: 'center' }}>
-            <View>
-              <DoughnutChart
-                data={categoryData}
-                config={{ height: 200, width: 200, showLabels: false, showLegend: false }}
-              />
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                pointerEvents="none"
-              >
-                <Text style={{ fontSize: 24, fontWeight: '700' }}>{CATEGORY_VALUES.productivity}%</Text>
-                <Text variant="caption" style={{ fontSize: 10, textTransform: 'uppercase' }}>{t('productif')}</Text>
+          {categoryData.length === 0 ? (
+            <EmptyChartState label={t('noData')} hint={t('trackingHint')} borderColor={border} />
+          ) : (
+            <>
+              <View style={{ alignItems: 'center' }}>
+                <View>
+                  <DoughnutChart
+                    data={categoryData}
+                    config={{ height: 200, width: 200, showLabels: false, showLegend: false }}
+                  />
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    pointerEvents="none"
+                  >
+                    <Text style={{ fontSize: 24, fontWeight: '700' }}>{productivityPct}%</Text>
+                    <Text variant="caption" style={{ fontSize: 10, textTransform: 'uppercase' }}>{t('productif')}</Text>
+                  </View>
+                </View>
               </View>
-            </View>
-          </View>
 
-          <View style={{ marginTop: 16, gap: 10 }}>
-            {CATEGORY_ORDER.filter(cat => CATEGORY_VALUES[cat] > 0).map(cat => (
-              <View key={cat} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontSize: 13 }}>{CATEGORY_META[cat].emoji}</Text>
-                <Text style={{ flex: 1, fontSize: 13 }}>{tc(CATEGORY_META[cat].labelKey)}</Text>
-                <Text variant="caption" style={{ fontSize: 12, fontFamily: 'monospace' }}>{CATEGORY_VALUES[cat]}%</Text>
+              <View style={{ marginTop: 16, gap: 10 }}>
+                {categoryData.map(c => (
+                  <View key={c.cat} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ fontSize: 13 }}>{c.emoji}</Text>
+                    <Text style={{ flex: 1, fontSize: 13 }}>{c.label}</Text>
+                    <Text variant="caption" style={{ fontSize: 12, fontFamily: 'monospace' }}>{formatMinutes(c.value)}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </>
+          )}
         </ChartContainer>
       </Animated.View>
 
       {/* Comparaison entre jours — LineChart (composant BNA UI, comme l'extension) */}
-      <Animated.View entering={FadeInDown.delay(440).duration(400)}>
+      <Animated.View entering={FadeInDown.delay(380).duration(400)}>
         <ChartContainer title={t('evolution7d')} description={t('evolution7dDesc')}>
-          <LineChart
-            data={WEEKLY_DATA.map(d => ({ x: d.label, y: d.value, label: d.label }))}
-            config={{ height: 180, gradient: true }}
-          />
+          {hasWeeklyData ? (
+            <LineChart
+              data={last7Days}
+              config={{ height: 180, gradient: true }}
+            />
+          ) : (
+            <EmptyChartState label={t('notEnoughData')} hint={t('trackingHint')} borderColor={border} />
+          )}
         </ChartContainer>
       </Animated.View>
 
       {distractionPct >= 40 && (
-        <Animated.View entering={FadeInDown.delay(480).duration(400)}>
+        <Animated.View entering={FadeInDown.delay(440).duration(400)}>
           <View
             style={{
               backgroundColor: violet + '1A',
@@ -249,6 +214,24 @@ export default function AnalyticsScreen() {
         </Animated.View>
       )}
       </ScrollView>
+    </View>
+  )
+}
+
+function EmptyChartState({ label, hint, borderColor }: { label: string; hint: string; borderColor: string }) {
+  return (
+    <View
+      style={{
+        alignItems: 'center', justifyContent: 'center',
+        paddingVertical: 28, gap: 6,
+        borderWidth: 1, borderStyle: 'dashed', borderColor,
+        borderRadius: 12,
+      }}
+    >
+      <Text variant="caption" style={{ fontSize: 13, textAlign: 'center' }}>{label}</Text>
+      <Text variant="caption" style={{ fontSize: 11, textAlign: 'center', opacity: 0.7, maxWidth: 260, lineHeight: 15 }}>
+        {hint}
+      </Text>
     </View>
   )
 }

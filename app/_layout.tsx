@@ -27,6 +27,7 @@ import { PermissionsOnboarding } from '@/components/PermissionsOnboarding'
 import { supabase } from '@/lib/supabase'
 import { fetchSubscription } from '@/lib/subscription'
 import { useAppStore } from '@/store/useAppStore'
+import { useAppMonitor } from '@/hooks/useAppMonitor'
 
 // The native splash (icon only — see app.json's expo-splash-screen plugin)
 // stays up until we explicitly hide it, so it can hand off to
@@ -67,6 +68,9 @@ function RootLayoutNav() {
   const { setUser, setSubscription, setAuthCachedAt, logout, hasSeenPermissionsOnboarding, completePermissionsOnboarding } = useAppStore()
   const colorScheme = useColorScheme()
   const [sessionLoaded, setSessionLoaded] = useState(false)
+  // Always mounted (not gated behind the splash/onboarding screens below)
+  // so blocklist sync and usage-stat pulls keep running continuously.
+  useAppMonitor()
   const [fontsLoaded] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold,
     Montserrat_700Bold,
