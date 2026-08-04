@@ -82,7 +82,8 @@
     "permissionsAccessibilityDesc": "Lets BlockWeb Master detect which app or site you're using in real time — the actual mechanism that enforces blocking and tracks usage. Without it, your rules are saved but never applied.",
     "permissionsEnable": "Enable",
     "permissionsRequested": "Requested",
-    "permissionsSkip": "I'll do this later"
+    "permissionsSkip": "I'll do this later",
+    "accessibilityDisabledWarning": "Accessibility is off — this rule is saved but not enforced yet."
   },
   "sidebar": {
     "analytics": "Analytics",

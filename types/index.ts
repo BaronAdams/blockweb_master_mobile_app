@@ -94,4 +94,8 @@ export type AppState = {
    *  period instead of signing out on a network error. */
   authCachedAt: number | null
   hasSeenPermissionsOnboarding: boolean
+  /** Whether the native AccessibilityService (see modules/blocker) is
+   *  actually enabled on-device — refreshed by hooks/useAppMonitor.ts.
+   *  Blocking rules only take effect while this is true. */
+  isAccessibilityEnabled: boolean
 }

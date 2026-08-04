@@ -7,6 +7,7 @@ import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { StatCard } from '@/components/StatCard'
 import { AppHeader } from '@/components/AppHeader'
+import { AccessibilityWarningBanner } from '@/components/AccessibilityWarningBanner'
 import { EntryIcon } from '@/components/EntryIcon'
 import { LineChart } from '@/components/charts/line-chart'
 import { DoughnutChart } from '@/components/charts/doughnut-chart'
@@ -38,11 +39,11 @@ export default function AnalyticsScreen() {
 
   const todayLabel = new Date().toLocaleDateString(i18n.language, { day: 'numeric', month: 'long' })
   const today = dateKey(new Date())
-  // `analytics` is only ever populated by recordUsage() — real per-app usage
-  // time from the device. Nothing calls it yet (no tracking engine wired
-  // up), so this is empty on a fresh install, not mock data standing in
-  // for it. Every section below shows an honest "not tracked" state
-  // instead of fabricated numbers when it's empty.
+  // `analytics` is populated by mergeUsageStats() (see hooks/useAppMonitor.ts),
+  // fed by the real native AccessibilityService (modules/blocker) — it's
+  // empty until that service is enabled and has observed some usage, not
+  // mock data standing in for it. Every section below shows an honest
+  // "not tracked" state instead of fabricated numbers when it's empty.
   const todayRecord = analytics.find(a => a.date === today) ?? null
 
   const categoryTotals = todayRecord ? getCategoryBreakdown(todayRecord.appUsage, []) : null
@@ -96,6 +97,8 @@ export default function AnalyticsScreen() {
           <Text variant="caption" style={{ marginTop: 2 }}>{`${tc('today')} · ${todayLabel}`}</Text>
         </View>
 
+        <AccessibilityWarningBanner active={blockedApps.length > 0} />
+
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
         <Animated.View entering={FadeInDown.delay(0).duration(400)} style={{ width: '48%' }}>
           <StatCard label="Apps bloquées" value={String(blockedApps.length)} icon={Ban} color="#f43f5e" />
@@ -111,7 +114,7 @@ export default function AnalyticsScreen() {
         </Animated.View>
       </View>
 
-      {/* Historique de navigation — données réelles (store.analytics), vide tant qu'aucun moteur de suivi n'alimente recordUsage() */}
+      {/* Historique de navigation — données réelles (store.analytics), alimentées par le vrai moteur natif (modules/blocker) via mergeUsageStats() */}
       <Animated.View entering={FadeInDown.delay(260).duration(400)}>
         <ChartContainer title={t('history')} description={`${tc('today')} · ${todayLabel}`}>
           {historyEntries.length === 0 ? (

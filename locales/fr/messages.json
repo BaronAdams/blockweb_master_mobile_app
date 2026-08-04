@@ -82,7 +82,8 @@
     "permissionsAccessibilityDesc": "Permet à BlockWeb Master de détecter en temps réel quelle appli ou quel site vous utilisez — c'est le vrai mécanisme qui applique le blocage et suit l'utilisation. Sans elle, vos règles sont enregistrées mais jamais appliquées.",
     "permissionsEnable": "Activer",
     "permissionsRequested": "Demandé",
-    "permissionsSkip": "Je le ferai plus tard"
+    "permissionsSkip": "Je le ferai plus tard",
+    "accessibilityDisabledWarning": "L'accessibilité est désactivée — cette règle est enregistrée mais pas encore appliquée."
   },
   "sidebar": {
     "analytics": "Analytiques",

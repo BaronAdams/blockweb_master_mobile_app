@@ -28,10 +28,11 @@ type PermissionRow = {
 //
 // Accessibility is the important one: it's what actually lets the app
 // detect app/site switches in real time to enforce blocking and track
-// usage (see hooks/useAppMonitor.ts) — Usage Access alone is poll-based
-// and much less immediate. None of the three has its native counterpart
-// wired up yet (no AccessibilityService is registered in this build), so
-// enabling them today doesn't yet turn on real blocking.
+// usage (see modules/blocker and hooks/useAppMonitor.ts) — Usage Access
+// alone is poll-based and much less immediate. Usage Access and Overlay
+// still have no native counterpart wired up (app blocking only needs
+// Accessibility); website/keyword blocking is unimplemented regardless of
+// these grants (needs a VpnService-based approach, deferred).
 export function PermissionsOnboarding({ onDone }: { onDone: () => void }) {
   const { t } = useTranslation('common')
   const background = useColor('background')

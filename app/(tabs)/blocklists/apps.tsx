@@ -11,6 +11,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { AppHeader } from '@/components/AppHeader'
 import { SubScreenHeader } from '@/components/SubScreenHeader'
 import { AppIcon } from '@/components/AppIcon'
+import { AccessibilityWarningBanner } from '@/components/AccessibilityWarningBanner'
 import { useColor } from '@/hooks/useColor'
 import { useInstalledApps } from '@/hooks/useInstalledApps'
 import { useAppStore } from '@/store/useAppStore'
@@ -84,6 +85,7 @@ export default function AppsBlockListScreen() {
       <SubScreenHeader title={t('applications')} />
       <View style={{ flex: 1, paddingHorizontal: 20 }}>
         <Text variant="caption" style={{ marginBottom: 12 }}>{t('applicationsDesc')}</Text>
+        <AccessibilityWarningBanner active={selected.size > 0} />
         <SearchBar
           placeholder={t('searchApp')}
           value={search}

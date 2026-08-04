@@ -14,6 +14,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 import { CountdownCell } from '@/components/CountdownCell'
 import { SectionTitle } from '@/components/SectionTitle'
 import { AppHeader } from '@/components/AppHeader'
+import { AccessibilityWarningBanner } from '@/components/AccessibilityWarningBanner'
 import { useColor } from '@/hooks/useColor'
 import { useStrictMode } from '@/hooks/useStrictMode'
 import { useAppStore } from '@/store/useAppStore'
@@ -33,6 +34,7 @@ export default function StrictModeScreen() {
   const primary = useColor('primary')
   const { isActive, getRemainingTime, activate } = useStrictMode()
   const plan = useAppStore(s => s.plan)
+  const blockedApps = useAppStore(s => s.blockedApps)
   const [days, setDays] = useState(1)
   const [remaining, setRemaining] = useState(getRemainingTime())
 
@@ -61,6 +63,7 @@ export default function StrictModeScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}
       >
+      <AccessibilityWarningBanner active={isActive || blockedApps.length > 0} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="title">{t('title')}</Text>
         <Badge variant={isActive ? 'destructive' : 'outline'}>

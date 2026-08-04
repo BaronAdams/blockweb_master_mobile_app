@@ -5,6 +5,7 @@ import { ChevronRight, Smartphone, Globe, Hash, CircleCheck, Lock } from 'lucide
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { AppHeader } from '@/components/AppHeader'
+import { AccessibilityWarningBanner } from '@/components/AccessibilityWarningBanner'
 import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
 import { isPremium } from '@/utils/limits'
@@ -38,6 +39,7 @@ export default function BlockListsMenuScreen() {
       <AppHeader />
       <View style={{ flex: 1, padding: 20 }}>
         <Text variant="title" style={{ marginBottom: 16 }}>{t('title')}</Text>
+        <AccessibilityWarningBanner active={blockedApps.length > 0} />
         <View style={{ gap: 10 }}>
           {items.map(item => {
             const Icon = item.icon
