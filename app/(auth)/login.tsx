@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Mail, Lock } from 'lucide-react-native'
+import { Mail, Lock, WifiOff } from 'lucide-react-native'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Input } from '@/components/ui/input'
@@ -30,7 +30,8 @@ export default function LoginScreen() {
       setError(t('invalidCredentials'))
       return
     }
-    router.replace('/(tabs)')
+    if (router.canGoBack()) router.back()
+    else router.replace('/(tabs)')
   }
 
   return (
@@ -44,6 +45,19 @@ export default function LoginScreen() {
           <AppLogo size={56} />
           <Text variant="subtitle" style={{ marginTop: 18 }}>{t('signIn')}</Text>
           <Text variant="caption" style={{ marginTop: 4 }}>{t('tagline')}</Text>
+        </View>
+
+        <View
+          style={{
+            flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+            backgroundColor: primary + '0D', borderWidth: 1, borderColor: primary + '26',
+            borderRadius: 10, padding: 10, marginBottom: 20,
+          }}
+        >
+          <WifiOff size={14} color={primary} style={{ marginTop: 1 }} />
+          <Text variant="caption" style={{ fontSize: 11, flex: 1, lineHeight: 16 }}>
+            {t('requiresInternet')}
+          </Text>
         </View>
 
         <View style={{ gap: 12 }}>

@@ -69,7 +69,18 @@
     "productivity": "Productivity",
     "productivityDesc": "Work and learning",
     "other": "Other",
-    "otherDesc": "Unclassified navigation"
+    "otherDesc": "Unclassified navigation",
+    "permissionsTitle": "Permissions",
+    "permissionsIntro": "BlockWeb Master needs a few permissions to actually block apps and track usage. You can grant them now or later from your phone's settings.",
+    "permissionsNotifTitle": "Notifications",
+    "permissionsNotifDesc": "Alerts when a time limit is reached or Strict Mode expires.",
+    "permissionsUsageTitle": "Usage access",
+    "permissionsUsageDesc": "Needed to detect which app is currently open, so limits can be enforced.",
+    "permissionsOverlayTitle": "Display over other apps",
+    "permissionsOverlayDesc": "Needed to show the block screen on top of a blocked app.",
+    "permissionsEnable": "Enable",
+    "permissionsRequested": "Requested",
+    "permissionsSkip": "I'll do this later"
   },
   "sidebar": {
     "analytics": "Analytics",
@@ -111,6 +122,7 @@
   },
   "auth": {
     "tagline": "Take back control of your time.",
+    "requiresInternet": "Signing in or creating an account requires an internet connection.",
     "resetTagline": "Password reset",
     "login": "Login",
     "register": "Register",
@@ -552,6 +564,9 @@
     "expired": "Expired",
     "active": "Active",
     "appearance": "Appearance",
+    "guestTitle": "You're browsing as a guest",
+    "guestDesc": "Sign in to sync your blocklists, subscription, and settings across devices.",
+    "signInCta": "Sign in or create an account",
     "themeSystem": "System",
     "themeLight": "Light",
     "themeDark": "Dark"

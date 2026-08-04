@@ -9,15 +9,17 @@ import { Button } from '@/components/ui/button'
 import { SearchBar } from '@/components/ui/searchbar'
 import { AppHeader } from '@/components/AppHeader'
 import { SubScreenHeader } from '@/components/SubScreenHeader'
+import { AppIcon } from '@/components/AppIcon'
 import { useColor } from '@/hooks/useColor'
 import { useInstalledApps } from '@/hooks/useInstalledApps'
 import { useAppStore } from '@/store/useAppStore'
 import { limitsFor, isPremium } from '@/utils/limits'
 
-// Installed-apps picker: browse every app on the phone, tap to stage a
-// selection, then confirm to commit it as the blocked-apps set. Real device
-// app listing still needs a native module (see hooks/useInstalledApps.ts) —
-// for now this browses the same stand-in list used elsewhere.
+// Installed-apps picker: browse every app on the phone (real apps + icons
+// on Android via react-native-launcher-kit, see hooks/useInstalledApps.ts),
+// tap to stage a selection, then confirm to commit it as the blocked-apps
+// set. iOS has no equivalent listing API, so it still shows the curated
+// demo list there.
 export default function AppsBlockListScreen() {
   const { t } = useTranslation('blockLists')
   const router = useRouter()
@@ -111,17 +113,7 @@ export default function AppsBlockListScreen() {
                   opacity: disabled ? 0.4 : 1,
                 }}
               >
-                <View
-                  style={{
-                    width: 36, height: 36, borderRadius: 8,
-                    backgroundColor: background,
-                    alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ fontWeight: '700', fontSize: 14 }}>
-                    {item.appName.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                <AppIcon appName={item.appName} icon={item.icon} size={36} />
                 <Text style={{ flex: 1, fontSize: 14, fontWeight: '600' }}>{item.appName}</Text>
                 <View
                   style={{
