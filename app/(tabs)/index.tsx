@@ -216,13 +216,12 @@ export default function AnalyticsScreen() {
         </ChartContainer>
       </Animated.View>
 
-      {/* Comparaison entre jours — LineChart (comme l'extension), plus BarChart */}
+      {/* Comparaison entre jours — LineChart (composant BNA UI, comme l'extension) */}
       <Animated.View entering={FadeInDown.delay(440).duration(400)}>
         <ChartContainer title={t('evolution7d')} description={t('evolution7dDesc')}>
           <LineChart
-            data={WEEKLY_DATA}
-            config={{ height: 160, formatValue: v => formatMinutes(v) }}
-            color={violet}
+            data={WEEKLY_DATA.map(d => ({ x: d.label, y: d.value, label: d.label }))}
+            config={{ height: 180, gradient: true }}
           />
         </ChartContainer>
       </Animated.View>

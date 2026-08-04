@@ -12,11 +12,12 @@ import { AlertDialog, useAlertDialog } from '@/components/ui/alert-dialog'
 import { SectionTitle } from '@/components/SectionTitle'
 import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
+import { useModeContext, type Mode } from '@/providers/mode-provider'
 import { supabase } from '@/lib/supabase'
 import { isPremium } from '@/utils/limits'
-import type { ThemePreference, UserPlan } from '@/types'
+import type { UserPlan } from '@/types'
 
-const THEME_OPTIONS: { value: ThemePreference; labelKey: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+const THEME_OPTIONS: { value: Mode; labelKey: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { value: 'system', labelKey: 'themeSystem', icon: Smartphone },
   { value: 'light', labelKey: 'themeLight', icon: Sun },
   { value: 'dark', labelKey: 'themeDark', icon: Moon },
@@ -40,8 +41,8 @@ export default function AccountScreen() {
   const user = useAppStore(s => s.user)
   const plan = useAppStore(s => s.plan)
   const logout = useAppStore(s => s.logout)
-  const themePreference = useAppStore(s => s.themePreference)
-  const setThemePreference = useAppStore(s => s.setThemePreference)
+  // Non-null: RootLayout always mounts a ModeProvider above every screen.
+  const { mode, setMode } = useModeContext()!
 
   const logoutDialog = useAlertDialog()
   const deleteDialog = useAlertDialog()
@@ -106,13 +107,13 @@ export default function AccountScreen() {
         <SectionTitle style={{ marginBottom: 8, marginLeft: 4 }}>{t('appearance')}</SectionTitle>
         <Card style={{ padding: 0 }}>
           {THEME_OPTIONS.map((option, index) => {
-            const selected = themePreference === option.value
+            const selected = mode === option.value
             const OptionIcon = option.icon
             return (
               <View key={option.value}>
                 {index > 0 && <Separator />}
                 <Pressable
-                  onPress={() => setThemePreference(option.value)}
+                  onPress={() => setMode(option.value)}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',

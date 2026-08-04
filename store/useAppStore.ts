@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import type { AppState, BlockedApp, BlockedWebsite, DailyAnalytics, LimiterProfile, SubscriptionState, ThemePreference } from '@/types'
+import type { AppState, BlockedApp, BlockedWebsite, DailyAnalytics, LimiterProfile, SubscriptionState } from '@/types'
 
 type AppStore = AppState & {
   addBlockedApp: (app: BlockedApp) => void
@@ -33,9 +33,6 @@ type AppStore = AppState & {
    *  `subscriptions` table (see lib/subscription.ts), never set locally. */
   setSubscription: (subscription: SubscriptionState) => void
   logout: () => void
-
-  /** 'system' follows the phone's setting; 'light'/'dark' overrides it. */
-  setThemePreference: (preference: ThemePreference) => void
 }
 
 const DEFAULT_SUBSCRIPTION: SubscriptionState = { plan: 'free', expiresAt: null, isValid: true }
@@ -53,7 +50,6 @@ export const useAppStore = create<AppStore>()(
       plan: 'free',
       subscription: DEFAULT_SUBSCRIPTION,
       user: null,
-      themePreference: 'system',
 
       addBlockedApp: (app) => set(s => ({
         blockedApps: [...s.blockedApps, app]
@@ -191,7 +187,6 @@ export const useAppStore = create<AppStore>()(
       setUser: (user) => set({ user }),
       setSubscription: (subscription) => set({ subscription, plan: subscription.plan }),
       logout: () => set({ user: null, plan: 'free', subscription: DEFAULT_SUBSCRIPTION }),
-      setThemePreference: (themePreference) => set({ themePreference }),
     }),
     {
       name: 'blockweb-master-storage',

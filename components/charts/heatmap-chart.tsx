@@ -1,7 +1,8 @@
 import { useColor } from '@/hooks/useColor';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LayoutChangeEvent, View, ViewStyle } from 'react-native';
 import Animated, {
+  SharedValue,
   useAnimatedProps,
   useSharedValue,
   withDelay,
@@ -11,6 +12,51 @@ import Svg, { G, Rect, Text as SvgText } from 'react-native-svg';
 
 // Animated SVG Components
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
+
+type AnimatedCellProps = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  delay: number;
+  animationProgress: SharedValue<number>;
+};
+
+// Per-item hook must live in its own mounted subcomponent, not in the
+// parent's nested rows×cols .map() body — calling useAnimatedProps per
+// loop iteration violates Rules of Hooks the moment data changes, and this
+// is the worst multiplier in the chart set (one mount per row×col cell).
+const AnimatedCell = React.memo(
+  ({
+    x,
+    y,
+    width,
+    height,
+    fill,
+    delay,
+    animationProgress,
+  }: AnimatedCellProps) => {
+    const cellAnimatedProps = useAnimatedProps(() => ({
+      opacity: withDelay(
+        delay,
+        withTiming(animationProgress.value, { duration: 300 })
+      ),
+    }));
+
+    return (
+      <AnimatedRect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={fill}
+        rx={4}
+        animatedProps={cellAnimatedProps}
+      />
+    );
+  }
+);
 
 // Utility functions
 const interpolateColor = (
@@ -121,89 +167,114 @@ export const HeatmapChart = ({ data, config = {}, style }: Props) => {
     }
   }, [data, animated, duration]);
 
+  // The grid rebuild is O(rows×cols) — the worst-case multiplier in the
+  // chart set — so it's memoized rather than recomputed on every render
+  // regardless of whether the inputs changed.
+  const layout = useMemo(() => {
+    const uniqueRows = [...new Set(data.map((d) => d.row))].sort();
+    const uniqueCols = [...new Set(data.map((d) => d.col))].sort();
+    const numRows = uniqueRows.length;
+    const numCols = uniqueCols.length;
+
+    const values = data.map((d) => d.value);
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+
+    const innerChartWidth = chartWidth - padding * 2;
+    const chartHeight = height - padding * 2;
+
+    const cellSpacing = 2;
+    const cellWidth = (innerChartWidth - (numCols - 1) * cellSpacing) / numCols;
+    const cellHeight = (chartHeight - (numRows - 1) * cellSpacing) / numRows;
+
+    const dataMap = new Map<string, HeatmapDataPoint>();
+    data.forEach((point) => {
+      dataMap.set(`${point.row}-${point.col}`, point);
+    });
+
+    const cells = uniqueRows.flatMap((row, rowIndex) =>
+      uniqueCols.map((col, colIndex) => {
+        const point = dataMap.get(`${row}-${col}`);
+        const value = point?.value || 0;
+        return {
+          key: `${row}-${col}`,
+          row,
+          col,
+          value,
+          hasPoint: !!point,
+          x: padding + colIndex * (cellWidth + cellSpacing),
+          y: padding + rowIndex * (cellHeight + cellSpacing),
+          color: getHeatmapColor(value, minValue, maxValue, colorScale),
+          delay: (rowIndex * numCols + colIndex) * 50,
+        };
+      })
+    );
+
+    return {
+      uniqueRows,
+      uniqueCols,
+      numRows,
+      numCols,
+      minValue,
+      maxValue,
+      cellWidth,
+      cellHeight,
+      cellSpacing,
+      cells,
+    };
+  }, [data, chartWidth, height, padding, colorScale]);
+
   if (!data.length) return null;
 
-  // Calculate grid dimensions
-  const uniqueRows = [...new Set(data.map((d) => d.row))].sort();
-  const uniqueCols = [...new Set(data.map((d) => d.col))].sort();
-  const numRows = uniqueRows.length;
-  const numCols = uniqueCols.length;
-
-  // Calculate value range for color scaling
-  const values = data.map((d) => d.value);
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
-
-  const innerChartWidth = chartWidth - padding * 2;
-  const chartHeight = height - padding * 2;
-
-  // Calculate cell dimensions with spacing
-  const cellSpacing = 2;
-  const cellWidth = (innerChartWidth - (numCols - 1) * cellSpacing) / numCols;
-  const cellHeight = (chartHeight - (numRows - 1) * cellSpacing) / numRows;
-
-  // Create a map for quick data lookup
-  const dataMap = new Map<string, HeatmapDataPoint>();
-  data.forEach((point) => {
-    dataMap.set(`${point.row}-${point.col}`, point);
-  });
+  const {
+    uniqueRows,
+    uniqueCols,
+    numRows,
+    numCols,
+    minValue,
+    maxValue,
+    cellWidth,
+    cellHeight,
+    cellSpacing,
+    cells,
+  } = layout;
 
   return (
-    <View style={[{ width: '100%', height }, style]} onLayout={handleLayout}>
+    <View
+      style={[{ width: '100%', height }, style]}
+      onLayout={handleLayout}
+      accessibilityRole='image'
+      accessibilityLabel={`Heatmap with ${numRows} rows and ${numCols} columns, values from ${Math.round(minValue)} to ${Math.round(maxValue)}`}
+    >
       <Svg width={chartWidth} height={height}>
-        {uniqueRows.map((row, rowIndex) =>
-          uniqueCols.map((col, colIndex) => {
-            const point = dataMap.get(`${row}-${col}`);
-            const value = point?.value || 0;
-            const label = point?.label || `${row}-${col}`;
+        {cells.map((cell) => (
+          <G key={`cell-${cell.key}`}>
+            <AnimatedCell
+              x={cell.x}
+              y={cell.y}
+              width={cellWidth}
+              height={cellHeight}
+              fill={cell.color}
+              delay={cell.delay}
+              animationProgress={animationProgress}
+            />
 
-            const x = padding + colIndex * (cellWidth + cellSpacing);
-            const y = padding + rowIndex * (cellHeight + cellSpacing);
-
-            const cellColor = getHeatmapColor(
-              value,
-              minValue,
-              maxValue,
-              colorScale
-            );
-
-            const cellAnimatedProps = useAnimatedProps(() => ({
-              opacity: withDelay(
-                (rowIndex * numCols + colIndex) * 50,
-                withTiming(animationProgress.value, { duration: 300 })
-              ),
-            }));
-
-            return (
-              <G key={`cell-${row}-${col}`}>
-                <AnimatedRect
-                  x={x}
-                  y={y}
-                  width={cellWidth}
-                  height={cellHeight}
-                  fill={cellColor}
-                  rx={4}
-                  animatedProps={cellAnimatedProps}
-                />
-
-                {showLabels && cellWidth > 30 && cellHeight > 20 && (
-                  <SvgText
-                    x={x + cellWidth / 2}
-                    y={y + cellHeight / 2 + 4}
-                    textAnchor='middle'
-                    fontSize={Math.min(10, cellWidth / 4)}
-                    fill={
-                      value > (minValue + maxValue) / 2 ? '#ffffff' : textColor
-                    }
-                    fontWeight='500'
-                  >
-                    {point ? value.toString() : ''}
-                  </SvgText>
-                )}
-              </G>
-            );
-          })
-        )}
+            {showLabels && cellWidth > 30 && cellHeight > 20 && (
+              <SvgText
+                x={cell.x + cellWidth / 2}
+                y={cell.y + cellHeight / 2 + 4}
+                textAnchor='middle'
+                fontSize={Math.min(10, cellWidth / 4)}
+                fill={
+                  cell.value > (minValue + maxValue) / 2 ? '#ffffff' : textColor
+                }
+                fontWeight='500'
+              >
+                {cell.hasPoint ? cell.value.toString() : ''}
+              </SvgText>
+            )}
+          </G>
+        ))}
 
         {/* Row labels */}
         {showLabels && (
