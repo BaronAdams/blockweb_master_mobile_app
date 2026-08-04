@@ -1,16 +1,61 @@
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { LayoutChangeEvent, View, ViewStyle } from 'react-native';
 import Animated, {
+  SharedValue,
   useAnimatedProps,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G, Path, Text as SvgText } from 'react-native-svg';
 
 // Animated SVG Components
 const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+type AnimatedSliceProps = {
+  d: string;
+  fill: string;
+  animationProgress: SharedValue<number>;
+  // A single 100%-share slice makes the arc's start/end points coincide,
+  // which SVG's arc command can't draw — render a stroked ring instead.
+  fullRing?: {
+    cx: number;
+    cy: number;
+    meanRadius: number;
+    strokeWidth: number;
+  };
+};
+
+// Per-item hook must live in its own mounted subcomponent, not in the
+// parent's .map() body — calling useAnimatedProps per loop iteration
+// violates Rules of Hooks the moment data.length changes.
+const AnimatedSlice = React.memo(
+  ({ d, fill, animationProgress, fullRing }: AnimatedSliceProps) => {
+    const sliceAnimatedProps = useAnimatedProps(() => ({
+      opacity: animationProgress.value,
+    }));
+
+    if (fullRing) {
+      return (
+        <AnimatedCircle
+          cx={fullRing.cx}
+          cy={fullRing.cy}
+          r={fullRing.meanRadius}
+          fill='none'
+          stroke={fill}
+          strokeWidth={fullRing.strokeWidth}
+          animatedProps={sliceAnimatedProps}
+        />
+      );
+    }
+
+    return (
+      <AnimatedPath d={d} fill={fill} animatedProps={sliceAnimatedProps} />
+    );
+  }
+);
 
 interface ChartConfig {
   width?: number;
@@ -70,8 +115,11 @@ export const DoughnutChart = ({ data, config = {}, style }: Props) => {
   if (!data.length) return null;
 
   const total = data.reduce((sum, item) => sum + item.value, 0);
+  if (total === 0) return null;
+
   const outerRadius = Math.min(chartWidth, height) / 2 - 20;
-  const innerRadiusValue = outerRadius * innerRadius;
+  const clampedInnerRadius = Math.max(0, Math.min(0.95, innerRadius));
+  const innerRadiusValue = outerRadius * clampedInnerRadius;
   const centerX = chartWidth / 2;
   const centerY = height / 2;
 
@@ -87,7 +135,12 @@ export const DoughnutChart = ({ data, config = {}, style }: Props) => {
   ];
 
   return (
-    <View style={[{ width: '100%' }, style]} onLayout={handleLayout}>
+    <View
+      style={[{ width: '100%' }, style]}
+      onLayout={handleLayout}
+      accessibilityRole='image'
+      accessibilityLabel={`Doughnut chart with ${data.length} slices, total ${Math.round(total)}`}
+    >
       <Svg width={chartWidth} height={height}>
         {data.map((item, index) => {
           const sliceAngle = (item.value / total) * 2 * Math.PI;
@@ -124,16 +177,26 @@ export const DoughnutChart = ({ data, config = {}, style }: Props) => {
 
           currentAngle = endAngle;
 
-          const sliceAnimatedProps = useAnimatedProps(() => ({
-            opacity: animationProgress.value,
-          }));
+          // A single slice spanning the full circle (only one item, or every
+          // other item has a value of 0) has coincident arc start/end points.
+          const isFullCircle = sliceAngle >= 2 * Math.PI - 1e-6;
 
           return (
             <G key={`slice-${index}`}>
-              <AnimatedPath
+              <AnimatedSlice
                 d={pathData}
                 fill={item.color || colors[index % colors.length]}
-                animatedProps={sliceAnimatedProps}
+                animationProgress={animationProgress}
+                fullRing={
+                  isFullCircle
+                    ? {
+                        cx: centerX,
+                        cy: centerY,
+                        meanRadius: (outerRadius + innerRadiusValue) / 2,
+                        strokeWidth: outerRadius - innerRadiusValue,
+                      }
+                    : undefined
+                }
               />
 
               {showLabels && (
