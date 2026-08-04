@@ -1,4 +1,4 @@
-import { Pressable, ScrollView } from 'react-native'
+import { ScrollView } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Clock3, Trash2 } from 'lucide-react-native'
@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { AlertDialog, useAlertDialog } from '@/components/ui/alert-dialog'
 import { SectionTitle } from '@/components/SectionTitle'
+import { DangerButton } from '@/components/DangerButton'
 import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
 import { useInstalledApps } from '@/hooks/useInstalledApps'
@@ -23,7 +24,6 @@ export default function ProfileDetailScreen() {
   const router = useRouter()
   const background = useColor('background')
   const border = useColor('border')
-  const red = useColor('red')
 
   const { id } = useLocalSearchParams<{ id: string }>()
   const profile = useAppStore(s => s.limiterProfiles.find(p => p.id === id))
@@ -151,19 +151,12 @@ export default function ProfileDetailScreen() {
         )}
       </Card>
 
-      <Pressable
+      <DangerButton
+        label={strictModeActive ? t('strictBlocked') : t('deleteProfile')}
+        icon={Trash2}
         onPress={deleteDialog.open}
         disabled={strictModeActive}
-      >
-        <Card style={{ backgroundColor: red + '0D', borderColor: red + '33', borderWidth: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Trash2 size={16} color={red} />
-            <Text style={{ color: red, fontSize: 14, fontWeight: '600' }}>
-              {strictModeActive ? t('strictBlocked') : t('deleteProfile')}
-            </Text>
-          </View>
-        </Card>
-      </Pressable>
+      />
 
       <AlertDialog
         isVisible={deleteDialog.isVisible}

@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated'
-import { Trash2, Pencil, ShieldOff } from 'lucide-react-native'
+import { Trash2, Pencil, ShieldOff, Hourglass, ShieldAlert } from 'lucide-react-native'
 import Slider from '@react-native-community/slider'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { CountdownCell } from '@/components/CountdownCell'
 import { SectionTitle } from '@/components/SectionTitle'
@@ -26,6 +27,8 @@ export default function StrictModeScreen() {
   const { t: tc } = useTranslation('common')
   const { t: tp } = useTranslation('profiles')
   const background = useColor('background')
+  const card = useColor('card')
+  const border = useColor('border')
   const red = useColor('red')
   const primary = useColor('primary')
   const { isActive, getRemainingTime, activate } = useStrictMode()
@@ -95,8 +98,8 @@ export default function StrictModeScreen() {
       </Card>
 
       {isActive && remaining ? (
-        <Card style={{ borderColor: red + '33', borderWidth: 1 }}>
-          <Badge variant="destructive" style={{ alignSelf: 'flex-start', marginBottom: 16 }}>
+        <Card style={{ borderColor: red + '33', borderWidth: 1, gap: 16 }}>
+          <Badge variant="destructive" style={{ alignSelf: 'flex-start' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Animated.View style={[{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' }, pulseStyle]} />
               <Text style={{ fontSize: 12, fontWeight: '600', color: '#fff' }}>{t('active')}</Text>
@@ -111,7 +114,7 @@ export default function StrictModeScreen() {
           </View>
 
           {unlockDate && (
-            <Text variant="caption" style={{ fontSize: 12, textAlign: 'center', marginTop: 16 }}>
+            <Text variant="caption" style={{ fontSize: 12, textAlign: 'center' }}>
               {t('willDeactivate')}
               {' — '}
               {unlockDate.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -119,50 +122,73 @@ export default function StrictModeScreen() {
           )}
         </Card>
       ) : (
-        <Card style={{ backgroundColor: primary + '0D', borderColor: primary + '26', borderWidth: 1 }}>
-          <Text style={{ fontSize: 14, fontWeight: '700' }}>{t('activate')}</Text>
-          <Text variant="caption" style={{ fontSize: 12, marginTop: 4, marginBottom: 20 }}>
-            {t('desc')}
-          </Text>
+        <Card style={{ backgroundColor: primary + '0D', borderColor: primary + '26', borderWidth: 1, gap: 16 }}>
+          <View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Hourglass size={16} color={primary} />
+              <Text style={{ fontSize: 14, fontWeight: '700' }}>{t('activate')}</Text>
+            </View>
+            <Text variant="caption" style={{ fontSize: 12 }}>{t('desc')}</Text>
+          </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text variant="caption" style={{ fontSize: 11 }}>{t('duration')}</Text>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: primary }}>
-              {`${days} ${tc('days')}`}
+          <View style={{ gap: 10 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text variant="caption" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {t('duration')}
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: primary }}>
+                {`${days} ${tc('days')}`}
+              </Text>
+            </View>
+            <Slider
+              minimumValue={1}
+              maximumValue={maxDays}
+              step={1}
+              value={days}
+              onValueChange={setDays}
+              minimumTrackTintColor="#f59e0b"
+              maximumTrackTintColor="#27272a"
+              thumbTintColor="#f59e0b"
+            />
+          </View>
+
+          <View
+            style={{
+              flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+              padding: 10, borderRadius: 10,
+              backgroundColor: red + '14', borderWidth: 1, borderColor: red + '26',
+            }}
+          >
+            <ShieldAlert size={14} color={red} style={{ marginTop: 1 }} />
+            <Text variant="caption" style={{ fontSize: 11, flex: 1, lineHeight: 16 }}>
+              {t('onceActivated').replace(/<[^>]+>/g, '')}
             </Text>
           </View>
-          <Slider
-            minimumValue={1}
-            maximumValue={maxDays}
-            step={1}
-            value={days}
-            onValueChange={setDays}
-            minimumTrackTintColor="#f59e0b"
-            maximumTrackTintColor="#27272a"
-            thumbTintColor="#f59e0b"
-          />
 
-          <Button style={{ marginTop: 16 }} onPress={() => activate(days)}>
+          <Button onPress={() => activate(days)}>
             {`${t('activate')} — ${days} ${tc('days')}`}
           </Button>
-
-          <Text variant="caption" style={{ fontSize: 11, textAlign: 'center', marginTop: 12 }}>
-            {t('onceActivated').replace(/<[^>]+>/g, '')}
-          </Text>
         </Card>
       )}
 
       <View>
         <SectionTitle style={{ marginBottom: 8 }}>{t('tipsTitle')}</SectionTitle>
         <Accordion type="single" collapsible>
-          {TIP_KEYS.map((key, i) => (
-            <AccordionItem key={key} value={String(i)}>
-              <AccordionTrigger>{t(`${key}Title`)}</AccordionTrigger>
-              <AccordionContent>
-                <Text variant="caption" style={{ fontSize: 12 }}>{t(`${key}Desc`)}</Text>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
+          <View style={{ backgroundColor: card, borderWidth: 1, borderColor: border, borderRadius: 14, overflow: 'hidden' }}>
+            {TIP_KEYS.map((key, i) => (
+              <View key={key}>
+                {i > 0 && <Separator />}
+                <AccordionItem value={String(i)}>
+                  <View style={{ paddingHorizontal: 16 }}>
+                    <AccordionTrigger>{t(`${key}Title`)}</AccordionTrigger>
+                    <AccordionContent>
+                      <Text variant="caption" style={{ fontSize: 12 }}>{t(`${key}Desc`)}</Text>
+                    </AccordionContent>
+                  </View>
+                </AccordionItem>
+              </View>
+            ))}
+          </View>
         </Accordion>
       </View>
       </ScrollView>

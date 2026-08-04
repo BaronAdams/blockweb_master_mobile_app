@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
+import { Separator } from '@/components/ui/separator'
 import { SectionTitle } from '@/components/SectionTitle'
 import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
@@ -35,6 +36,7 @@ const PLANS: PlanCardData[] = [
 export default function PricingScreen() {
   const { t } = useTranslation('pricing')
   const background = useColor('background')
+  const card = useColor('card')
   const border = useColor('border')
   const currentPlan = useAppStore(s => s.plan)
 
@@ -133,14 +135,21 @@ export default function PricingScreen() {
       <View>
         <SectionTitle style={{ marginBottom: 8 }}>{t('faq')}</SectionTitle>
         <Accordion type="single" collapsible>
-          {FAQ_KEYS.map((qKey, i) => (
-            <AccordionItem key={qKey} value={String(i)}>
-              <AccordionTrigger>{t(qKey)}</AccordionTrigger>
-              <AccordionContent>
-                <Text variant="caption" style={{ fontSize: 12 }}>{t(`faqA${i + 1}`)}</Text>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
+          <View style={{ backgroundColor: card, borderWidth: 1, borderColor: border, borderRadius: 14, overflow: 'hidden' }}>
+            {FAQ_KEYS.map((qKey, i) => (
+              <View key={qKey}>
+                {i > 0 && <Separator />}
+                <AccordionItem value={String(i)}>
+                  <View style={{ paddingHorizontal: 16 }}>
+                    <AccordionTrigger>{t(qKey)}</AccordionTrigger>
+                    <AccordionContent>
+                      <Text variant="caption" style={{ fontSize: 12 }}>{t(`faqA${i + 1}`)}</Text>
+                    </AccordionContent>
+                  </View>
+                </AccordionItem>
+              </View>
+            ))}
+          </View>
         </Accordion>
       </View>
     </ScrollView>
