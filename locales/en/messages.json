@@ -78,6 +78,8 @@
     "permissionsUsageDesc": "Needed to detect which app is currently open, so limits can be enforced.",
     "permissionsOverlayTitle": "Display over other apps",
     "permissionsOverlayDesc": "Needed to show the block screen on top of a blocked app.",
+    "permissionsAccessibilityTitle": "Accessibility",
+    "permissionsAccessibilityDesc": "Lets BlockWeb Master detect which app or site you're using in real time — the actual mechanism that enforces blocking and tracks usage. Without it, your rules are saved but never applied.",
     "permissionsEnable": "Enable",
     "permissionsRequested": "Requested",
     "permissionsSkip": "I'll do this later"
@@ -240,6 +242,7 @@
     "compareActive": "Comparison active",
     "noActivity": "No activity recorded that day.",
     "noActivityHint": "Hourly history is available since the update.",
+    "trackingHint": "Enable Accessibility access in Permissions to start tracking your app and website usage.",
     "selected": "selected",
     "selectedPlural": "selected",
     "whereTime": "Where does your time go?",

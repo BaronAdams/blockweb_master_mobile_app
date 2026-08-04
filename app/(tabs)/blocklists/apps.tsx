@@ -7,6 +7,7 @@ import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Button } from '@/components/ui/button'
 import { SearchBar } from '@/components/ui/searchbar'
+import { Spinner } from '@/components/ui/spinner'
 import { AppHeader } from '@/components/AppHeader'
 import { SubScreenHeader } from '@/components/SubScreenHeader'
 import { AppIcon } from '@/components/AppIcon'
@@ -22,6 +23,7 @@ import { limitsFor, isPremium } from '@/utils/limits'
 // demo list there.
 export default function AppsBlockListScreen() {
   const { t } = useTranslation('blockLists')
+  const { t: tc } = useTranslation('common')
   const router = useRouter()
   const background = useColor('background')
   const card = useColor('card')
@@ -35,7 +37,7 @@ export default function AppsBlockListScreen() {
   const addBlockedApp = useAppStore(s => s.addBlockedApp)
   const removeBlockedApp = useAppStore(s => s.removeBlockedApp)
 
-  const { apps: installedApps } = useInstalledApps()
+  const { apps: installedApps, loading: appsLoading } = useInstalledApps()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(blockedApps.map(a => a.packageName))
@@ -89,6 +91,11 @@ export default function AppsBlockListScreen() {
           containerStyle={{ marginBottom: 12 }}
         />
 
+        {appsLoading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 }}>
+            <Spinner variant="circle" label={tc('loading')} showLabel />
+          </View>
+        ) : (
         <FlatList
           data={filtered}
           keyExtractor={item => item.packageName}
@@ -133,6 +140,7 @@ export default function AppsBlockListScreen() {
             <Text variant="caption" style={{ textAlign: 'center', marginTop: 24 }}>{t('noApp')}</Text>
           }
         />
+        )}
       </View>
 
       <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: border, backgroundColor: background }}>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Linking, Platform, ScrollView } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import * as Notifications from 'expo-notifications'
-import { Bell, Eye, Layers, ShieldCheck, type LucideIcon } from 'lucide-react-native'
+import { Accessibility, Bell, Eye, Layers, ShieldCheck, type LucideIcon } from 'lucide-react-native'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Card } from '@/components/ui/card'
@@ -19,12 +19,19 @@ type PermissionRow = {
 
 // Shown once (see hasSeenPermissionsOnboarding in the app store) right
 // after the session/splash gate. Notifications is a real, requestable
-// runtime permission; Usage Access and "display over other apps" are
-// Android "special app access" grants with no request dialog — the OS
-// only lets a user flip them from Settings, so these deep-link there
-// instead of pretending to request them. There's no API to read back
-// whether the user actually granted them afterwards, so this can't
+// runtime permission; Accessibility, Usage Access and "display over other
+// apps" are Android "special app access" grants with no request dialog —
+// the OS only lets a user flip them from Settings, so these deep-link
+// there instead of pretending to request them. There's no API to read
+// back whether the user actually granted them afterwards, so this can't
 // hard-gate the app on it — "Continuer" always proceeds.
+//
+// Accessibility is the important one: it's what actually lets the app
+// detect app/site switches in real time to enforce blocking and track
+// usage (see hooks/useAppMonitor.ts) — Usage Access alone is poll-based
+// and much less immediate. None of the three has its native counterpart
+// wired up yet (no AccessibilityService is registered in this build), so
+// enabling them today doesn't yet turn on real blocking.
 export function PermissionsOnboarding({ onDone }: { onDone: () => void }) {
   const { t } = useTranslation('common')
   const background = useColor('background')
@@ -41,6 +48,13 @@ export function PermissionsOnboarding({ onDone }: { onDone: () => void }) {
       // block onboarding.
     }
     markRequested('notifications')
+  }
+
+  const openAccessibilitySettings = () => {
+    markRequested('accessibility')
+    if (Platform.OS === 'android') {
+      Linking.sendIntent('android.settings.ACCESSIBILITY_SETTINGS').catch(() => {})
+    }
   }
 
   const openUsageAccessSettings = () => {
@@ -60,6 +74,7 @@ export function PermissionsOnboarding({ onDone }: { onDone: () => void }) {
   const rows: PermissionRow[] = [
     { key: 'notifications', icon: Bell, titleKey: 'permissionsNotifTitle', descKey: 'permissionsNotifDesc', onEnable: requestNotifications },
     ...(Platform.OS === 'android' ? [
+      { key: 'accessibility', icon: Accessibility, titleKey: 'permissionsAccessibilityTitle', descKey: 'permissionsAccessibilityDesc', onEnable: openAccessibilitySettings },
       { key: 'usage', icon: Eye, titleKey: 'permissionsUsageTitle', descKey: 'permissionsUsageDesc', onEnable: openUsageAccessSettings },
       { key: 'overlay', icon: Layers, titleKey: 'permissionsOverlayTitle', descKey: 'permissionsOverlayDesc', onEnable: openOverlaySettings },
     ] as PermissionRow[] : []),

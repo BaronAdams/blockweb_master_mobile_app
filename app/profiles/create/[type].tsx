@@ -10,6 +10,7 @@ import { AppHeader } from '@/components/AppHeader'
 import { SubScreenHeader } from '@/components/SubScreenHeader'
 import { SectionTitle } from '@/components/SectionTitle'
 import { AppIcon } from '@/components/AppIcon'
+import { Spinner } from '@/components/ui/spinner'
 import { useColor } from '@/hooks/useColor'
 import { useInstalledApps } from '@/hooks/useInstalledApps'
 import { useAppStore } from '@/store/useAppStore'
@@ -46,7 +47,7 @@ export default function CreateProfileFormScreen() {
   const type: LimiterType = (typeParam as LimiterType) in PROFILE_TYPE_META ? (typeParam as LimiterType) : 'daily'
   const meta = PROFILE_TYPE_META[type]
 
-  const { apps } = useInstalledApps()
+  const { apps, loading: appsLoading } = useInstalledApps()
   const addProfile = useAppStore(s => s.addProfile)
 
   const [name, setName] = useState('')
@@ -128,6 +129,16 @@ export default function CreateProfileFormScreen() {
 
         <View>
           <SectionTitle style={{ marginBottom: 8 }}>Applications</SectionTitle>
+          {appsLoading ? (
+            <View
+              style={{
+                paddingVertical: 32, alignItems: 'center', justifyContent: 'center',
+                backgroundColor: card, borderRadius: 14, borderWidth: 1, borderColor: border,
+              }}
+            >
+              <Spinner variant="circle" label={tc('loading')} showLabel />
+            </View>
+          ) : (
           <View style={{ backgroundColor: card, borderRadius: 14, borderWidth: 1, borderColor: border, overflow: 'hidden' }}>
             {apps.map((app, i) => {
               const selected = selectedApps.includes(app.packageName)
@@ -161,6 +172,7 @@ export default function CreateProfileFormScreen() {
               )
             })}
           </View>
+          )}
         </View>
 
         {(type === 'daily' || type === 'hourly' || type === 'weekly') && (
