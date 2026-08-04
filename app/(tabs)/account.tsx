@@ -1,7 +1,7 @@
 import { Pressable, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight } from 'lucide-react-native'
+import { ChevronRight, Check, Smartphone, Sun, Moon } from 'lucide-react-native'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Card } from '@/components/ui/card'
@@ -14,7 +14,13 @@ import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
 import { supabase } from '@/lib/supabase'
 import { isPremium } from '@/utils/limits'
-import type { UserPlan } from '@/types'
+import type { ThemePreference, UserPlan } from '@/types'
+
+const THEME_OPTIONS: { value: ThemePreference; labelKey: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { value: 'system', labelKey: 'themeSystem', icon: Smartphone },
+  { value: 'light', labelKey: 'themeLight', icon: Sun },
+  { value: 'dark', labelKey: 'themeDark', icon: Moon },
+]
 
 const PLAN_BADGE: Record<UserPlan, { labelKey: string; color: string }> = {
   free: { labelKey: 'free', color: '#a1a1aa' },
@@ -28,11 +34,14 @@ export default function AccountScreen() {
   const { t: tc } = useTranslation('common')
   const router = useRouter()
   const background = useColor('background')
+  const primary = useColor('primary')
   const red = useColor('red')
 
   const user = useAppStore(s => s.user)
   const plan = useAppStore(s => s.plan)
   const logout = useAppStore(s => s.logout)
+  const themePreference = useAppStore(s => s.themePreference)
+  const setThemePreference = useAppStore(s => s.setThemePreference)
 
   const logoutDialog = useAlertDialog()
   const deleteDialog = useAlertDialog()
@@ -90,6 +99,36 @@ export default function AccountScreen() {
           <SettingsRow label={t('changePassword')} showChevron />
           <Separator />
           <SettingsRow label={t('changeUsername')} showChevron />
+        </Card>
+      </View>
+
+      <View>
+        <SectionTitle style={{ marginBottom: 8, marginLeft: 4 }}>{t('appearance')}</SectionTitle>
+        <Card style={{ padding: 0 }}>
+          {THEME_OPTIONS.map((option, index) => {
+            const selected = themePreference === option.value
+            const OptionIcon = option.icon
+            return (
+              <View key={option.value}>
+                {index > 0 && <Separator />}
+                <Pressable
+                  onPress={() => setThemePreference(option.value)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 14,
+                    paddingHorizontal: 16,
+                    minHeight: 48,
+                  }}
+                >
+                  <OptionIcon size={18} color={selected ? primary : '#71717a'} />
+                  <Text style={{ flex: 1, fontSize: 14 }}>{t(option.labelKey)}</Text>
+                  {selected && <Check size={18} color={primary} />}
+                </Pressable>
+              </View>
+            )
+          })}
         </Card>
       </View>
 

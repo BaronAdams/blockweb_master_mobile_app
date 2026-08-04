@@ -5,10 +5,11 @@ import { useTranslation } from 'react-i18next'
 import { Ban, Globe, Hash, Hourglass, Eye } from 'lucide-react-native'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
-import { Separator } from '@/components/ui/separator'
 import { StatCard } from '@/components/StatCard'
 import { AppHeader } from '@/components/AppHeader'
+import { EntryIcon } from '@/components/EntryIcon'
 import { BarChart } from '@/components/charts/bar-chart'
+import { LineChart } from '@/components/charts/line-chart'
 import { DoughnutChart } from '@/components/charts/doughnut-chart'
 import { ChartContainer } from '@/components/charts/chart-container'
 import { useColor } from '@/hooks/useColor'
@@ -129,28 +130,51 @@ export default function AnalyticsScreen() {
         </Animated.View>
       </View>
 
+      {/* Bar chart horaire — un label toutes les 2h (12 labels) pour rester lisible sur 24 barres */}
       <Animated.View entering={FadeInDown.delay(320).duration(400)}>
         <ChartContainer title={t('hourlyChart')} description={t('hourlyDesc')}>
           <BarChart
             data={HOURLY_DATA.map(d => ({ ...d, color: CATEGORY_META.productivity.color }))}
-            config={{ height: 180, showLabels: false }}
+            config={{ height: 180, showLabels: true, labelEvery: 2, showValues: false }}
             selectedIndex={selectedHour}
             onBarPress={onHourPress}
           />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-            {['00h', '06h', '12h', '18h', '23h'].map(h => (
-              <Text key={h} variant="caption" style={{ fontSize: 10 }}>{h}</Text>
-            ))}
-          </View>
         </ChartContainer>
       </Animated.View>
 
+      {/* Historique de navigation — juste après le bar chart horaire */}
       <Animated.View entering={FadeInDown.delay(360).duration(400)}>
-        <ChartContainer title={t('evolution7d')} description={t('evolution7dDesc')}>
-          <BarChart
-            data={WEEKLY_DATA.map(d => ({ ...d, color: violet }))}
-            config={{ height: 160, showLabels: true }}
-          />
+        <ChartContainer title={t('history')}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+              {selectedHour === null ? t('today') : `${selectedHour}h-${selectedHour + 1}h`}
+            </Text>
+            {selectedHour !== null && (
+              <Pressable onPress={() => setSelectedHour(null)}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: violet }}>Tout afficher</Text>
+              </Pressable>
+            )}
+          </View>
+          <View style={{ marginTop: 8, gap: 4 }}>
+            {displayedHistory.length === 0 && (
+              <Text variant="caption" style={{ fontSize: 12, paddingVertical: 12, textAlign: 'center' }}>
+                {t('noActivity')}
+              </Text>
+            )}
+            {displayedHistory.map(entry => {
+              const meta = CATEGORY_META[entry.category]
+              return (
+                <View key={entry.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }}>
+                  <EntryIcon name={entry.name} type={entry.type} color={meta.color} />
+                  <Text style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>{entry.name}</Text>
+                  <Text style={{ fontSize: 13 }}>{meta.emoji}</Text>
+                  <Text variant="caption" style={{ fontSize: 12, fontFamily: 'monospace', width: 44, textAlign: 'right' }}>
+                    {formatMinutes(entry.minutes)}
+                  </Text>
+                </View>
+              )
+            })}
+          </View>
         </ChartContainer>
       </Animated.View>
 
@@ -189,54 +213,17 @@ export default function AnalyticsScreen() {
               </View>
             ))}
           </View>
+        </ChartContainer>
+      </Animated.View>
 
-          <Separator style={{ marginVertical: 16 }} />
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              {selectedHour === null ? t('history') : `${t('history')} · ${selectedHour}h-${selectedHour + 1}h`}
-            </Text>
-            {selectedHour !== null && (
-              <Pressable onPress={() => setSelectedHour(null)}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: violet }}>Tout afficher</Text>
-              </Pressable>
-            )}
-          </View>
-          <View style={{ marginTop: 12, gap: 4 }}>
-            {displayedHistory.length === 0 && (
-              <Text variant="caption" style={{ fontSize: 12, paddingVertical: 12, textAlign: 'center' }}>
-                {t('noActivity')}
-              </Text>
-            )}
-            {displayedHistory.map(entry => {
-              const meta = CATEGORY_META[entry.category]
-              const EntryIcon = entry.type === 'site' ? Globe : null
-              return (
-                <View key={entry.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }}>
-                  <View
-                    style={{
-                      width: 28, height: 28, borderRadius: 8,
-                      backgroundColor: meta.color + '1A',
-                      alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    {EntryIcon ? (
-                      <EntryIcon size={14} color={meta.color} />
-                    ) : (
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: meta.color }}>
-                        {entry.name.charAt(0).toUpperCase()}
-                      </Text>
-                    )}
-                  </View>
-                  <Text style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>{entry.name}</Text>
-                  <Text style={{ fontSize: 13 }}>{meta.emoji}</Text>
-                  <Text variant="caption" style={{ fontSize: 12, fontFamily: 'monospace', width: 44, textAlign: 'right' }}>
-                    {formatMinutes(entry.minutes)}
-                  </Text>
-                </View>
-              )
-            })}
-          </View>
+      {/* Comparaison entre jours — LineChart (comme l'extension), plus BarChart */}
+      <Animated.View entering={FadeInDown.delay(440).duration(400)}>
+        <ChartContainer title={t('evolution7d')} description={t('evolution7dDesc')}>
+          <LineChart
+            data={WEEKLY_DATA}
+            config={{ height: 160, formatValue: v => formatMinutes(v) }}
+            color={violet}
+          />
         </ChartContainer>
       </Animated.View>
 

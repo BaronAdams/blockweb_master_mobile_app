@@ -12,6 +12,7 @@ export function AppHeader() {
   const insets = useSafeAreaInsets()
   const primary = useColor('primary')
   const border = useColor('border')
+  const text = useColor('text')
 
   return (
     <View
@@ -28,9 +29,9 @@ export function AppHeader() {
     >
       <View
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
+          width: 44,
+          height: 44,
+          borderRadius: 12,
           backgroundColor: primary + '1A',
           borderWidth: 1,
           borderColor: primary + '40',
@@ -40,7 +41,7 @@ export function AppHeader() {
       >
         <Image
           source={require('@/assets/android-icon-foreground.png')}
-          style={{ width: 24, height: 24 }}
+          style={{ width: 36, height: 36 }}
           resizeMode="contain"
         />
       </View>
@@ -48,7 +49,7 @@ export function AppHeader() {
         style={{
           fontSize: 15,
           fontFamily: 'Montserrat_700Bold',
-          color: '#fff',
+          color: text,
           letterSpacing: -0.2,
         }}
       >
