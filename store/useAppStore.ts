@@ -32,7 +32,12 @@ type AppStore = AppState & {
   /** Single source of truth for the user's plan — populated from Supabase's
    *  `subscriptions` table (see lib/subscription.ts), never set locally. */
   setSubscription: (subscription: SubscriptionState) => void
+  /** Marks user/subscription as freshly confirmed against Supabase — starts
+   *  the 7-day offline grace window (see app/_layout.tsx's syncUser). */
+  setAuthCachedAt: (timestamp: number) => void
   logout: () => void
+
+  completePermissionsOnboarding: () => void
 }
 
 const DEFAULT_SUBSCRIPTION: SubscriptionState = { plan: 'free', expiresAt: null, isValid: true }
@@ -50,6 +55,8 @@ export const useAppStore = create<AppStore>()(
       plan: 'free',
       subscription: DEFAULT_SUBSCRIPTION,
       user: null,
+      authCachedAt: null,
+      hasSeenPermissionsOnboarding: false,
 
       addBlockedApp: (app) => set(s => ({
         blockedApps: [...s.blockedApps, app]
@@ -186,7 +193,9 @@ export const useAppStore = create<AppStore>()(
 
       setUser: (user) => set({ user }),
       setSubscription: (subscription) => set({ subscription, plan: subscription.plan }),
-      logout: () => set({ user: null, plan: 'free', subscription: DEFAULT_SUBSCRIPTION }),
+      setAuthCachedAt: (authCachedAt) => set({ authCachedAt }),
+      logout: () => set({ user: null, plan: 'free', subscription: DEFAULT_SUBSCRIPTION, authCachedAt: null }),
+      completePermissionsOnboarding: () => set({ hasSeenPermissionsOnboarding: true }),
     }),
     {
       name: 'blockweb-master-storage',

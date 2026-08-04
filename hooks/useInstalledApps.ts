@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Platform } from 'react-native'
 
 export type InstalledApp = {
@@ -11,18 +11,43 @@ export function useInstalledApps() {
   const [apps, setApps] = useState<InstalledApp[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadApps()
-  }, [])
+  const loadApps = useCallback(async () => {
+    setLoading(true)
 
-  const loadApps = async () => {
-    // Real device app listing requires native modules (Android UsageStats /
-    // iOS Screen Time) not yet wired up. Using the static demo lists for now.
+    // react-native-launcher-kit is Android-only (it reads the device's
+    // PackageManager) — iOS has no equivalent API at all, Apple doesn't
+    // allow any app to enumerate what else is installed, so there's no
+    // library that could do this on iOS. Fall back to the curated list
+    // there and on web.
+    if (Platform.OS === 'android') {
+      try {
+        const { InstalledApps } = await import('react-native-launcher-kit')
+        const installed = await InstalledApps.getSortedApps({
+          includeVersion: false,
+          includeAccentColor: false,
+        })
+        setApps(installed.map(app => ({
+          packageName: app.packageName,
+          appName: app.label,
+          icon: app.icon,
+        })))
+        setLoading(false)
+        return
+      } catch {
+        // Native module unavailable (e.g. running in Expo Go, or the
+        // permission prompt failed) — fall through to the demo list below.
+      }
+    }
+
     setApps(Platform.OS === 'android' ? POPULAR_APPS_ANDROID : POPULAR_APPS_IOS)
     setLoading(false)
-  }
+  }, [])
 
-  return { apps, loading }
+  useEffect(() => {
+    loadApps()
+  }, [loadApps])
+
+  return { apps, loading, reload: loadApps }
 }
 
 const POPULAR_APPS_ANDROID: InstalledApp[] = [

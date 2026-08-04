@@ -26,7 +26,16 @@ function isSubActive(plan: UserPlan, expiresAt: number | null, graceUntil: numbe
 
 /** Reads the real subscription plan from Supabase's `subscriptions` table
  *  (RLS-scoped to the signed-in user), the same source the Chrome extension
- *  uses. Falls back to 'free' if no row exists or the plan has expired. */
+ *  uses. Falls back to 'free' if no row exists or the plan has expired.
+ *
+ *  `maybeSingle()` returns `data: null, error: null` for a genuine "no
+ *  subscription row" — so `error` set here means something actually went
+ *  wrong (RLS, malformed query, or the network being down). A network
+ *  failure must not be reported as "no subscription": that would silently
+ *  downgrade an offline premium user to free. So it's thrown instead,
+ *  letting the caller (app/_layout.tsx) fall back to the cached plan
+ *  during its own offline grace period — only a confirmed empty result is
+ *  treated as a real free user. */
 export async function fetchSubscription(userId: string): Promise<SubscriptionState> {
   const { data, error } = await supabase
     .from('subscriptions')
@@ -34,7 +43,8 @@ export async function fetchSubscription(userId: string): Promise<SubscriptionSta
     .eq('user_id', userId)
     .maybeSingle()
 
-  if (error || !data) return DEFAULT_SUBSCRIPTION
+  if (error) throw error
+  if (!data) return DEFAULT_SUBSCRIPTION
 
   const plan = PLAN_MAP[data.plan as SupabasePlan] ?? 'free'
   const expiresAt = data.expires_at ? new Date(data.expires_at).getTime() : null

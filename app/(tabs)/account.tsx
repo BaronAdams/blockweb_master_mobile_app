@@ -1,11 +1,12 @@
 import { Pressable, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, Check, Smartphone, Sun, Moon, LogOut, Trash2 } from 'lucide-react-native'
+import { ChevronRight, Check, Smartphone, Sun, Moon, LogOut, Trash2, User as UserIcon } from 'lucide-react-native'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { AlertDialog, useAlertDialog } from '@/components/ui/alert-dialog'
@@ -38,12 +39,11 @@ export default function AccountScreen() {
   const background = useColor('background')
   const primary = useColor('primary')
   const red = useColor('red')
+  const mutedForeground = useColor('mutedForeground')
 
   const user = useAppStore(s => s.user)
   const plan = useAppStore(s => s.plan)
   const logout = useAppStore(s => s.logout)
-  // Non-null: RootLayout always mounts a ModeProvider above every screen.
-  const { mode, setMode } = useModeContext()!
 
   const logoutDialog = useAlertDialog()
   const deleteDialog = useAlertDialog()
@@ -51,10 +51,39 @@ export default function AccountScreen() {
   const initials = (user?.username ?? user?.email ?? '?').slice(0, 2).toUpperCase()
   const planMeta = PLAN_BADGE[plan]
 
+  // Sign-out only clears local session state — no forced navigation. The
+  // user stays on this tab, which just re-renders in its guest state.
   const onLogout = async () => {
     await supabase.auth.signOut()
     logout()
-    router.replace('/(auth)/login')
+  }
+
+  if (!user) {
+    return (
+      <ScrollView
+        style={{ flex: 1, backgroundColor: background }}
+        contentContainerStyle={{ padding: 20, paddingTop: 60, paddingBottom: 40, gap: 20 }}
+      >
+        <View style={{ alignItems: 'center', paddingVertical: 8, gap: 12 }}>
+          <Avatar size={72}>
+            <AvatarFallback>
+              <UserIcon size={28} color={mutedForeground} />
+            </AvatarFallback>
+          </Avatar>
+          <View style={{ alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700' }}>{t('guestTitle')}</Text>
+            <Text variant="caption" style={{ fontSize: 13, textAlign: 'center', maxWidth: 280, lineHeight: 18 }}>
+              {t('guestDesc')}
+            </Text>
+          </View>
+          <Button onPress={() => router.push('/(auth)/login')} style={{ marginTop: 8 }}>
+            {t('signInCta')}
+          </Button>
+        </View>
+
+        <AppearanceSection />
+      </ScrollView>
+    )
   }
 
   return (
@@ -68,8 +97,8 @@ export default function AccountScreen() {
             <Text style={{ fontSize: 22, fontWeight: '700' }}>{initials}</Text>
           </AvatarFallback>
         </Avatar>
-        <Text style={{ fontSize: 18, fontWeight: '700' }}>{user?.username ?? 'Invité'}</Text>
-        <Text variant="caption" style={{ fontSize: 13, marginTop: 2 }}>{user?.email ?? ''}</Text>
+        <Text style={{ fontSize: 18, fontWeight: '700' }}>{user.username}</Text>
+        <Text variant="caption" style={{ fontSize: 13, marginTop: 2 }}>{user.email}</Text>
         <Badge
           variant="outline"
           style={{ marginTop: 10, borderColor: planMeta.color + '60', backgroundColor: planMeta.color + '1A' }}
@@ -104,35 +133,7 @@ export default function AccountScreen() {
         </Card>
       </View>
 
-      <View>
-        <SectionTitle style={{ marginBottom: 8, marginLeft: 4 }}>{t('appearance')}</SectionTitle>
-        <Card style={{ padding: 0 }}>
-          {THEME_OPTIONS.map((option, index) => {
-            const selected = mode === option.value
-            const OptionIcon = option.icon
-            return (
-              <View key={option.value}>
-                {index > 0 && <Separator />}
-                <Pressable
-                  onPress={() => setMode(option.value)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 12,
-                    paddingVertical: 14,
-                    paddingHorizontal: 16,
-                    minHeight: 48,
-                  }}
-                >
-                  <OptionIcon size={18} color={selected ? primary : '#71717a'} />
-                  <Text style={{ flex: 1, fontSize: 14 }}>{t(option.labelKey)}</Text>
-                  {selected && <Check size={18} color={primary} />}
-                </Pressable>
-              </View>
-            )
-          })}
-        </Card>
-      </View>
+      <AppearanceSection />
 
       <View>
         <SectionTitle style={{ marginBottom: 8, marginLeft: 4, color: red }}>{t('permanentDeletion')}</SectionTitle>
@@ -160,6 +161,46 @@ export default function AccountScreen() {
         onConfirm={onLogout}
       />
     </ScrollView>
+  )
+}
+
+// A device preference, not personal account data — shown for guests too.
+function AppearanceSection() {
+  const { t } = useTranslation('account')
+  const primary = useColor('primary')
+  // Non-null: RootLayout always mounts a ModeProvider above every screen.
+  const { mode, setMode } = useModeContext()!
+
+  return (
+    <View>
+      <SectionTitle style={{ marginBottom: 8, marginLeft: 4 }}>{t('appearance')}</SectionTitle>
+      <Card style={{ padding: 0 }}>
+        {THEME_OPTIONS.map((option, index) => {
+          const selected = mode === option.value
+          const OptionIcon = option.icon
+          return (
+            <View key={option.value}>
+              {index > 0 && <Separator />}
+              <Pressable
+                onPress={() => setMode(option.value)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  minHeight: 48,
+                }}
+              >
+                <OptionIcon size={18} color={selected ? primary : '#71717a'} />
+                <Text style={{ flex: 1, fontSize: 14 }}>{t(option.labelKey)}</Text>
+                {selected && <Check size={18} color={primary} />}
+              </Pressable>
+            </View>
+          )
+        })}
+      </Card>
+    </View>
   )
 }
 

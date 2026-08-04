@@ -69,7 +69,18 @@
     "productivity": "Productivité",
     "productivityDesc": "Travail et apprentissage",
     "other": "Autre",
-    "otherDesc": "Navigation non classifiée"
+    "otherDesc": "Navigation non classifiée",
+    "permissionsTitle": "Permissions",
+    "permissionsIntro": "BlockWeb Master a besoin de quelques permissions pour bloquer les applis et suivre l'utilisation. Vous pouvez les accorder maintenant ou plus tard depuis les réglages du téléphone.",
+    "permissionsNotifTitle": "Notifications",
+    "permissionsNotifDesc": "Alertes quand une limite de temps est atteinte ou que le Mode Strict expire.",
+    "permissionsUsageTitle": "Accès à l'utilisation",
+    "permissionsUsageDesc": "Nécessaire pour détecter quelle application est ouverte, afin d'appliquer les limites.",
+    "permissionsOverlayTitle": "Affichage par-dessus d'autres applis",
+    "permissionsOverlayDesc": "Nécessaire pour afficher l'écran de blocage par-dessus une application bloquée.",
+    "permissionsEnable": "Activer",
+    "permissionsRequested": "Demandé",
+    "permissionsSkip": "Je le ferai plus tard"
   },
   "sidebar": {
     "analytics": "Analytiques",
@@ -111,6 +122,7 @@
   },
   "auth": {
     "tagline": "Reprenez le contrôle de votre temps.",
+    "requiresInternet": "La connexion ou la création de compte nécessite une connexion internet.",
     "resetTagline": "Réinitialisation du mot de passe",
     "login": "Connexion",
     "register": "Inscription",
@@ -552,6 +564,9 @@
     "expired": "Expiré",
     "active": "Actif",
     "appearance": "Apparence",
+    "guestTitle": "Vous naviguez en tant qu'invité",
+    "guestDesc": "Connectez-vous pour synchroniser vos listes de blocage, votre abonnement et vos réglages.",
+    "signInCta": "Se connecter ou créer un compte",
     "themeSystem": "Système",
     "themeLight": "Clair",
     "themeDark": "Sombre"

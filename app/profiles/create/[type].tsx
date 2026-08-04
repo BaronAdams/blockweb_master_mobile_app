@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { AppHeader } from '@/components/AppHeader'
 import { SubScreenHeader } from '@/components/SubScreenHeader'
 import { SectionTitle } from '@/components/SectionTitle'
+import { AppIcon } from '@/components/AppIcon'
 import { useColor } from '@/hooks/useColor'
 import { useInstalledApps } from '@/hooks/useInstalledApps'
 import { useAppStore } from '@/store/useAppStore'
@@ -144,6 +145,8 @@ export default function CreateProfileFormScreen() {
                     borderTopColor: border,
                   }}
                 >
+                  <AppIcon appName={app.appName} icon={app.icon} size={28} />
+                  <Text style={{ flex: 1, fontSize: 14 }}>{app.appName}</Text>
                   <View
                     style={{
                       width: 20,
@@ -154,7 +157,6 @@ export default function CreateProfileFormScreen() {
                       backgroundColor: selected ? primary : 'transparent',
                     }}
                   />
-                  <Text style={{ fontSize: 14 }}>{app.appName}</Text>
                 </Pressable>
               )
             })}

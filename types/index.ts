@@ -89,4 +89,9 @@ export type AppState = {
   plan: UserPlan
   subscription: SubscriptionState
   user: { email: string; username: string } | null
+  /** When `user`/`subscription` were last confirmed against Supabase.
+   *  Used to keep the cached profile usable offline for a bounded grace
+   *  period instead of signing out on a network error. */
+  authCachedAt: number | null
+  hasSeenPermissionsOnboarding: boolean
 }

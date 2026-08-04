@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
+import * as SplashScreen from 'expo-splash-screen'
 import i18n from '@/lib/i18n'
 import { ModeProvider } from '@/providers/mode-provider'
 import { useColorScheme } from '@/hooks/useColorScheme'
@@ -21,9 +22,27 @@ import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold'
 // extension's sidebar logo — only this one weight is needed.
 import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold'
 import { ThemeProvider } from '@/theme/theme-provider'
+import { AppSplashScreen } from '@/components/AppSplashScreen'
+import { PermissionsOnboarding } from '@/components/PermissionsOnboarding'
 import { supabase } from '@/lib/supabase'
 import { fetchSubscription } from '@/lib/subscription'
 import { useAppStore } from '@/store/useAppStore'
+
+// The native splash (icon only — see app.json's expo-splash-screen plugin)
+// stays up until we explicitly hide it, so it can hand off to
+// AppSplashScreen (icon + Montserrat wordmark) instead of auto-hiding onto
+// a blank frame the moment the first native frame is drawn.
+SplashScreen.preventAutoHideAsync().catch(() => {})
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+
+// Mirrors the Chrome extension's syncAuth: a network failure must never
+// sign the user out. Only a confirmed invalid/expired session does that.
+function isNetworkError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false
+  const msg = err.message.toLowerCase()
+  return msg.includes('fetch') || msg.includes('network') || msg.includes('failed') || msg.includes('offline')
+}
 
 // RTL layout for Arabic. RN only fully applies a forceRTL change after an
 // app reload, so this only takes effect from the next cold start once the
@@ -45,7 +64,7 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const { user, setUser, setSubscription } = useAppStore()
+  const { setUser, setSubscription, setAuthCachedAt, logout, hasSeenPermissionsOnboarding, completePermissionsOnboarding } = useAppStore()
   const colorScheme = useColorScheme()
   const [sessionLoaded, setSessionLoaded] = useState(false)
   const [fontsLoaded] = useFonts({
@@ -54,44 +73,74 @@ function RootLayoutNav() {
   })
 
   useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {})
+  }, [fontsLoaded])
+
+  useEffect(() => {
     const syncUser = async (session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
-      setUser(session?.user ? {
+      if (!session?.user) {
+        logout()
+        return
+      }
+      setUser({
         email: session.user.email ?? '',
         username: session.user.email?.split('@')[0] ?? '',
-      } : null)
+      })
       // Real plan always comes from Supabase's `subscriptions` table — never
-      // set locally in the UI (see lib/subscription.ts).
-      setSubscription(session?.user ? await fetchSubscription(session.user.id) : { plan: 'free', expiresAt: null, isValid: true })
+      // set locally in the UI (see lib/subscription.ts). May throw on a
+      // network failure; the outer catch below decides what to do with that.
+      setSubscription(await fetchSubscription(session.user.id))
+      setAuthCachedAt(Date.now())
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      syncUser(session).finally(() => setSessionLoaded(true))
-    })
+    // A network failure reaching Supabase falls back to whatever is already
+    // cached in the store (from the last successful sync) as long as it's
+    // less than 7 days old — otherwise, or on a confirmed invalid session,
+    // sign out for real.
+    const handleSyncError = (err: unknown) => {
+      const { authCachedAt, user } = useAppStore.getState()
+      const withinGrace = !!user && authCachedAt != null && Date.now() - authCachedAt < SEVEN_DAYS_MS
+      if (isNetworkError(err) && withinGrace) return
+      logout()
+    }
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => syncUser(session))
+      .catch(handleSyncError)
+      .finally(() => setSessionLoaded(true))
 
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      syncUser(session)
+      syncUser(session).catch(handleSyncError)
     })
 
     return () => authSubscription.unsubscribe()
   }, [])
 
-  if (!sessionLoaded || !fontsLoaded) return null
+  if (!fontsLoaded) return null
+  if (!sessionLoaded) return <AppSplashScreen />
+
+  if (!hasSeenPermissionsOnboarding) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider>
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          <PermissionsOnboarding onDone={completePermissionsOnboarding} />
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    )
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Protected guard={!!user}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="profiles/create" />
-            <Stack.Screen name="profiles/[id]" />
-            <Stack.Screen name="pricing" />
-            <Stack.Screen name="blocked" />
-          </Stack.Protected>
-          <Stack.Protected guard={!user}>
-            <Stack.Screen name="(auth)" />
-          </Stack.Protected>
+        <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="profiles/create" />
+          <Stack.Screen name="profiles/[id]" />
+          <Stack.Screen name="pricing" />
+          <Stack.Screen name="blocked" />
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>
