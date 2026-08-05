@@ -19,8 +19,10 @@ if (Platform.OS === 'android') {
     // Lazy require: requireNativeModule throws immediately if the native
     // module isn't linked into this binary (e.g. Expo Go, or a build made
     // before this module existed) — caught here so the app degrades to
-    // "no real blocking yet" instead of crashing on import.
-    const { requireNativeModule } = require('expo-modules-core')
+    // "no real blocking yet" instead of crashing on import. Imported from
+    // 'expo' (which re-exports it), not 'expo-modules-core' directly — the
+    // latter must not be a direct dependency (see `expo doctor`).
+    const { requireNativeModule } = require('expo')
     native = requireNativeModule<BlockerNativeModule>('Blocker')
   } catch {
     native = null
