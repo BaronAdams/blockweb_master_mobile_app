@@ -8,6 +8,7 @@ import { SubScreenHeader } from '@/components/SubScreenHeader'
 import { BlockListRow } from '@/components/BlockListRow'
 import { EntryIcon } from '@/components/EntryIcon'
 import { LimitBadge, EmptyState, AddRow } from '@/components/blocklist-ui'
+import { AccessibilityWarningBanner } from '@/components/AccessibilityWarningBanner'
 import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
 
@@ -34,6 +35,7 @@ export default function WebsitesBlockListScreen() {
       <AppHeader />
       <SubScreenHeader title={t('blockedDomains')} right={<LimitBadge count={websites.length} max={Infinity} />} />
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
+        <AccessibilityWarningBanner active={websites.some(w => w.isBlocked)} />
         <AddRow value={input} onChangeText={setInput} onAdd={onAdd} placeholder={t('domainPlaceholder')} />
         <FlatList
           data={websites}

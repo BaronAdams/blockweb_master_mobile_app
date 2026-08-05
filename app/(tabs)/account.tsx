@@ -16,6 +16,7 @@ import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
 import { useModeContext, type Mode } from '@/providers/mode-provider'
 import { supabase } from '@/lib/supabase'
+import { DEVICE_LANGUAGE, LANGUAGE_NAMES } from '@/lib/i18n'
 import { isPremium } from '@/utils/limits'
 import type { UserPlan } from '@/types'
 
@@ -82,6 +83,7 @@ export default function AccountScreen() {
         </View>
 
         <AppearanceSection />
+        <LanguageSection />
       </ScrollView>
     )
   }
@@ -194,6 +196,53 @@ function AppearanceSection() {
               >
                 <OptionIcon size={18} color={selected ? primary : '#71717a'} />
                 <Text style={{ flex: 1, fontSize: 14 }}>{t(option.labelKey)}</Text>
+                {selected && <Check size={18} color={primary} />}
+              </Pressable>
+            </View>
+          )
+        })}
+      </Card>
+    </View>
+  )
+}
+
+// Two choices only, per product decision: the phone's own language (if we
+// have a translation for it), or English. Not the full 14-locale catalog —
+// this is meant as a quick override, not a language browser.
+function LanguageSection() {
+  const { t } = useTranslation('account')
+  const primary = useColor('primary')
+  const languagePreference = useAppStore(s => s.languagePreference)
+  const setLanguagePreference = useAppStore(s => s.setLanguagePreference)
+
+  const options: { value: 'device' | 'en'; label: string }[] = [
+    ...(DEVICE_LANGUAGE !== 'en'
+      ? [{ value: 'device' as const, label: `${t('languageDevice')} — ${LANGUAGE_NAMES[DEVICE_LANGUAGE] ?? DEVICE_LANGUAGE}` }]
+      : []),
+    { value: 'en', label: LANGUAGE_NAMES.en },
+  ]
+
+  return (
+    <View>
+      <SectionTitle style={{ marginBottom: 8, marginLeft: 4 }}>{t('language')}</SectionTitle>
+      <Card style={{ padding: 0 }}>
+        {options.map((option, index) => {
+          const selected = languagePreference === option.value
+          return (
+            <View key={option.value}>
+              {index > 0 && <Separator />}
+              <Pressable
+                onPress={() => setLanguagePreference(option.value)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  minHeight: 48,
+                }}
+              >
+                <Text style={{ flex: 1, fontSize: 14 }}>{option.label}</Text>
                 {selected && <Check size={18} color={primary} />}
               </Pressable>
             </View>

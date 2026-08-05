@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import i18n, { DEVICE_LANGUAGE } from '@/lib/i18n'
 import type { AppState, BlockedApp, BlockedWebsite, DailyAnalytics, LimiterProfile, SubscriptionState } from '@/types'
 
 type AppStore = AppState & {
@@ -29,6 +30,9 @@ type AppStore = AppState & {
    *  cumulative for the day, so days present in `stats` are replaced, not
    *  added to, to avoid double-counting. `blockedAttempts` is preserved. */
   mergeUsageStats: (stats: Record<string, Record<string, number>>) => void
+  /** Same idea as mergeUsageStats but for the hour-bucketed breakdown
+   *  (DailyAnalytics.hourlyUsage) — replaces per (day, hour). */
+  mergeHourlyUsageStats: (stats: Record<string, Record<string, Record<string, number>>>) => void
 
   activateStrictMode: (days: number) => void
   checkStrictExpiry: () => void
@@ -43,7 +47,14 @@ type AppStore = AppState & {
   logout: () => void
 
   completePermissionsOnboarding: () => void
+  completeOnboarding: () => void
   setAccessibilityEnabled: (enabled: boolean) => void
+  setOverlayPermissionGranted: (granted: boolean) => void
+
+  /** 'device' follows the phone's language (falling back to English if
+   *  unsupported); 'en' is an explicit user override. Applied immediately
+   *  and re-applied on every cold start once the store rehydrates. */
+  setLanguagePreference: (pref: 'device' | 'en') => void
 }
 
 const DEFAULT_SUBSCRIPTION: SubscriptionState = { plan: 'free', expiresAt: null, isValid: true }
@@ -63,7 +74,10 @@ export const useAppStore = create<AppStore>()(
       user: null,
       authCachedAt: null,
       hasSeenPermissionsOnboarding: false,
+      hasCompletedOnboarding: false,
       isAccessibilityEnabled: false,
+      isOverlayPermissionGranted: false,
+      languagePreference: 'device',
 
       addBlockedApp: (app) => set(s => ({
         blockedApps: [...s.blockedApps, app]
@@ -193,6 +207,26 @@ export const useAppStore = create<AppStore>()(
               appUsage,
               totalMinutes,
               blockedAttempts: existing?.blockedAttempts ?? 0,
+              hourlyUsage: existing?.hourlyUsage,
+            })
+          }
+          return { analytics: Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date)) }
+        })
+      },
+
+      mergeHourlyUsageStats: (stats) => {
+        const days = Object.keys(stats)
+        if (days.length === 0) return
+        set(s => {
+          const byDate = new Map(s.analytics.map(a => [a.date, a]))
+          for (const date of days) {
+            const existing = byDate.get(date)
+            byDate.set(date, {
+              date,
+              appUsage: existing?.appUsage ?? {},
+              totalMinutes: existing?.totalMinutes ?? 0,
+              blockedAttempts: existing?.blockedAttempts ?? 0,
+              hourlyUsage: stats[date],
             })
           }
           return { analytics: Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date)) }
@@ -223,11 +257,24 @@ export const useAppStore = create<AppStore>()(
       setAuthCachedAt: (authCachedAt) => set({ authCachedAt }),
       logout: () => set({ user: null, plan: 'free', subscription: DEFAULT_SUBSCRIPTION, authCachedAt: null }),
       completePermissionsOnboarding: () => set({ hasSeenPermissionsOnboarding: true }),
+      completeOnboarding: () => set({ hasCompletedOnboarding: true }),
       setAccessibilityEnabled: (isAccessibilityEnabled) => set({ isAccessibilityEnabled }),
+      setOverlayPermissionGranted: (isOverlayPermissionGranted) => set({ isOverlayPermissionGranted }),
+
+      setLanguagePreference: (languagePreference) => {
+        set({ languagePreference })
+        i18n.changeLanguage(languagePreference === 'en' ? 'en' : DEVICE_LANGUAGE)
+      },
     }),
     {
       name: 'blockweb-master-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      // i18n.ts already boots with the device language as a synchronous
+      // default (before this async AsyncStorage read resolves) — this
+      // re-applies an explicit 'en' override once we know about it.
+      onRehydrateStorage: () => (state) => {
+        if (state?.languagePreference === 'en') i18n.changeLanguage('en')
+      },
     }
   )
 )

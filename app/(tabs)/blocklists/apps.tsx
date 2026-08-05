@@ -10,7 +10,9 @@ import { SearchBar } from '@/components/ui/searchbar'
 import { Spinner } from '@/components/ui/spinner'
 import { AppHeader } from '@/components/AppHeader'
 import { SubScreenHeader } from '@/components/SubScreenHeader'
+import { SectionTitle } from '@/components/SectionTitle'
 import { AppIcon } from '@/components/AppIcon'
+import { BlockListRow } from '@/components/BlockListRow'
 import { AccessibilityWarningBanner } from '@/components/AccessibilityWarningBanner'
 import { useColor } from '@/hooks/useColor'
 import { useInstalledApps } from '@/hooks/useInstalledApps'
@@ -37,6 +39,7 @@ export default function AppsBlockListScreen() {
   const blockedApps = useAppStore(s => s.blockedApps)
   const addBlockedApp = useAppStore(s => s.addBlockedApp)
   const removeBlockedApp = useAppStore(s => s.removeBlockedApp)
+  const strictMode = useAppStore(s => s.strictMode)
 
   const { apps: installedApps, loading: appsLoading } = useInstalledApps()
   const [search, setSearch] = useState('')
@@ -46,6 +49,18 @@ export default function AppsBlockListScreen() {
 
   const filtered = installedApps.filter(a => a.appName.toLowerCase().includes(search.toLowerCase()))
   const atLimit = !isPremium(plan) && selected.size >= limits.maxBlockedApps
+
+  // Deletes both the committed store entry and the in-progress selection —
+  // otherwise onConfirm's diff below would see `isSelected && !existing`
+  // and silently re-add the app that was just removed here.
+  const onDelete = (id: string, packageName: string) => {
+    removeBlockedApp(id)
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.delete(packageName)
+      return next
+    })
+  }
 
   const toggle = (packageName: string) => {
     setSelected(prev => {
@@ -86,6 +101,27 @@ export default function AppsBlockListScreen() {
       <View style={{ flex: 1, paddingHorizontal: 20 }}>
         <Text variant="caption" style={{ marginBottom: 12 }}>{t('applicationsDesc')}</Text>
         <AccessibilityWarningBanner active={selected.size > 0} />
+
+        {blockedApps.length > 0 && (
+          <View style={{ marginBottom: 16 }}>
+            <SectionTitle style={{ marginBottom: 8 }}>{t('blockedApps')}</SectionTitle>
+            <View style={{ gap: 8 }}>
+              {blockedApps.map(app => {
+                const installed = installedApps.find(a => a.packageName === app.packageName)
+                return (
+                  <BlockListRow
+                    key={app.id}
+                    icon={<AppIcon appName={app.appName} icon={installed?.icon} size={28} />}
+                    label={app.appName}
+                    locked={strictMode.isActive}
+                    onRemove={() => onDelete(app.id, app.packageName)}
+                  />
+                )
+              })}
+            </View>
+          </View>
+        )}
+
         <SearchBar
           placeholder={t('searchApp')}
           value={search}

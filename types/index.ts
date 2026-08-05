@@ -61,6 +61,9 @@ export type DailyAnalytics = {
   appUsage: Record<string, number>
   totalMinutes: number
   blockedAttempts: number
+  /** hour ("0".."23") -> packageName -> minutes, for the hourly chart and
+   *  click-to-filter (see hooks/useAppMonitor.ts's mergeHourlyUsageStats). */
+  hourlyUsage?: Record<string, Record<string, number>>
 }
 
 export type StrictModeState = {
@@ -94,8 +97,17 @@ export type AppState = {
    *  period instead of signing out on a network error. */
   authCachedAt: number | null
   hasSeenPermissionsOnboarding: boolean
+  /** The first-launch Build Up + Paywall flow (marketing/personalization
+   *  intro), shown once before the permissions onboarding. */
+  hasCompletedOnboarding: boolean
   /** Whether the native AccessibilityService (see modules/blocker) is
    *  actually enabled on-device — refreshed by hooks/useAppMonitor.ts.
    *  Blocking rules only take effect while this is true. */
   isAccessibilityEnabled: boolean
+  /** Whether SYSTEM_ALERT_WINDOW ("draw over other apps") is granted —
+   *  required for the native block overlay to actually appear. */
+  isOverlayPermissionGranted: boolean
+  /** 'device' (default) follows the phone's language; 'en' is an explicit
+   *  user override — see store/useAppStore.ts's setLanguagePreference. */
+  languagePreference: 'device' | 'en'
 }

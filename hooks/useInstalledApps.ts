@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Platform } from 'react-native'
+import { OWN_PACKAGE_NAME } from '@/lib/constants'
 
 export type InstalledApp = {
   packageName: string
@@ -26,11 +27,15 @@ export function useInstalledApps() {
           includeVersion: false,
           includeAccentColor: false,
         })
-        setApps(installed.map(app => ({
-          packageName: app.packageName,
-          appName: app.label,
-          icon: app.icon,
-        })))
+        setApps(
+          installed
+            .filter(app => app.packageName !== OWN_PACKAGE_NAME)
+            .map(app => ({
+              packageName: app.packageName,
+              appName: app.label,
+              icon: app.icon,
+            }))
+        )
         setLoading(false)
         return
       } catch {

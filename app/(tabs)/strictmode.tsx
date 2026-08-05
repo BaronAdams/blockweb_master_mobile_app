@@ -9,8 +9,7 @@ import { Text } from '@/components/ui/text'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
+import { FaqAccordion } from '@/components/FaqAccordion'
 import { CountdownCell } from '@/components/CountdownCell'
 import { SectionTitle } from '@/components/SectionTitle'
 import { AppHeader } from '@/components/AppHeader'
@@ -28,8 +27,6 @@ export default function StrictModeScreen() {
   const { t: tc } = useTranslation('common')
   const { t: tp } = useTranslation('profiles')
   const background = useColor('background')
-  const card = useColor('card')
-  const border = useColor('border')
   const red = useColor('red')
   const primary = useColor('primary')
   const { isActive, getRemainingTime, activate } = useStrictMode()
@@ -176,23 +173,9 @@ export default function StrictModeScreen() {
 
       <View>
         <SectionTitle style={{ marginBottom: 8 }}>{t('tipsTitle')}</SectionTitle>
-        <Accordion type="single" collapsible>
-          <View style={{ backgroundColor: card, borderWidth: 1, borderColor: border, borderRadius: 14, overflow: 'hidden' }}>
-            {TIP_KEYS.map((key, i) => (
-              <View key={key}>
-                {i > 0 && <Separator />}
-                <AccordionItem value={String(i)}>
-                  <View style={{ paddingHorizontal: 16 }}>
-                    <AccordionTrigger>{t(`${key}Title`)}</AccordionTrigger>
-                    <AccordionContent>
-                      <Text variant="caption" style={{ fontSize: 12 }}>{t(`${key}Desc`)}</Text>
-                    </AccordionContent>
-                  </View>
-                </AccordionItem>
-              </View>
-            ))}
-          </View>
-        </Accordion>
+        <FaqAccordion
+          items={TIP_KEYS.map(key => ({ id: key, question: t(`${key}Title`), answer: t(`${key}Desc`) }))}
+        />
       </View>
       </ScrollView>
     </View>
