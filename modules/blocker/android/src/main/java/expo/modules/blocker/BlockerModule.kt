@@ -14,14 +14,34 @@ class BlockerModule : Module() {
       isServiceEnabled()
     }
 
+    AsyncFunction("isOverlayPermissionGranted") {
+      Settings.canDrawOverlays(context)
+    }
+
     AsyncFunction("setBlockedPackages") { packages: List<String> ->
       prefs().edit()
         .putStringSet(BlockAccessibilityService.BLOCKED_PACKAGES_KEY, packages.toHashSet())
         .apply()
     }
 
+    AsyncFunction("setBlockedDomains") { domains: List<String> ->
+      prefs().edit()
+        .putStringSet(BlockAccessibilityService.BLOCKED_DOMAINS_KEY, domains.toHashSet())
+        .apply()
+    }
+
+    AsyncFunction("setBlockedKeywords") { keywords: List<String> ->
+      prefs().edit()
+        .putStringSet(BlockAccessibilityService.BLOCKED_KEYWORDS_KEY, keywords.toHashSet())
+        .apply()
+    }
+
     AsyncFunction("getUsageStats") {
       readUsageStats()
+    }
+
+    AsyncFunction("getHourlyUsageStats") {
+      readHourlyUsageStats()
     }
   }
 
@@ -66,6 +86,34 @@ class BlockerModule : Module() {
         val minutes = prefs.getFloat("${BlockAccessibilityService.STATS_PREFIX}$day:$pkg", 0f)
         if (minutes > 0f) dayUsage[pkg] = minutes.toDouble()
       }
+      if (dayUsage.isNotEmpty()) result[day] = dayUsage
+    }
+
+    return result
+  }
+
+  /** { [date]: { [hour 0-23 as string]: { [packageName]: minutes } } } —
+   *  only days/hours with at least one non-zero entry are included. */
+  private fun readHourlyUsageStats(): Map<String, Map<String, Map<String, Double>>> {
+    val prefs = prefs()
+    val days = prefs.getStringSet(BlockAccessibilityService.DAYS_KEY, emptySet()) ?: emptySet()
+    val result = mutableMapOf<String, Map<String, Map<String, Double>>>()
+    val hourlyPrefix = BlockAccessibilityService.HOURLY_PREFIX
+
+    for (day in days) {
+      val hours = prefs.getStringSet("$hourlyPrefix$day:hours", emptySet()) ?: emptySet()
+      val dayUsage = mutableMapOf<String, Map<String, Double>>()
+
+      for (hour in hours) {
+        val packages = prefs.getStringSet("$hourlyPrefix$day:$hour:packages", emptySet()) ?: emptySet()
+        val hourUsage = mutableMapOf<String, Double>()
+        for (pkg in packages) {
+          val minutes = prefs.getFloat("$hourlyPrefix$day:$hour:$pkg", 0f)
+          if (minutes > 0f) hourUsage[pkg] = minutes.toDouble()
+        }
+        if (hourUsage.isNotEmpty()) dayUsage[hour] = hourUsage
+      }
+
       if (dayUsage.isNotEmpty()) result[day] = dayUsage
     }
 

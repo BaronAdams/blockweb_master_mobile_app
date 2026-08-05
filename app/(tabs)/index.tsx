@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { ScrollView } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
@@ -8,14 +8,16 @@ import { Text } from '@/components/ui/text'
 import { StatCard } from '@/components/StatCard'
 import { AppHeader } from '@/components/AppHeader'
 import { AccessibilityWarningBanner } from '@/components/AccessibilityWarningBanner'
-import { EntryIcon } from '@/components/EntryIcon'
+import { AppIcon } from '@/components/AppIcon'
 import { LineChart } from '@/components/charts/line-chart'
 import { DoughnutChart } from '@/components/charts/doughnut-chart'
+import { StackedBarChart } from '@/components/charts/stacked-bar-chart'
 import { ChartContainer } from '@/components/charts/chart-container'
 import { useColor } from '@/hooks/useColor'
+import { useInstalledApps } from '@/hooks/useInstalledApps'
 import { useAppStore } from '@/store/useAppStore'
 import { formatMinutes, getCategoryBreakdown } from '@/utils/analytics'
-import { CATEGORY_META } from '@/lib/categories'
+import { CATEGORY_META, categorizeApp } from '@/lib/categories'
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 const dateKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
@@ -27,7 +29,6 @@ export default function AnalyticsScreen() {
   const { t: tc, i18n } = useTranslation('common')
   const background = useColor('background')
   const border = useColor('border')
-  const mutedForeground = useColor('mutedForeground')
   const violet = CATEGORY_META.distraction.color
 
   const blockedApps = useAppStore(s => s.blockedApps)
@@ -37,13 +38,25 @@ export default function AnalyticsScreen() {
   const analytics = useAppStore(s => s.analytics)
   const activeProfileCount = limiterProfiles.filter(p => p.isActive).length
 
+  const { apps: installedApps } = useInstalledApps()
+  const appInfo = useMemo(() => {
+    const map = new Map<string, { appName: string; icon?: string }>()
+    for (const a of installedApps) map.set(a.packageName, { appName: a.appName, icon: a.icon })
+    return map
+  }, [installedApps])
+  const resolveAppName = (pkg: string) =>
+    appInfo.get(pkg)?.appName ?? blockedApps.find(a => a.packageName === pkg)?.appName ?? pkg
+
+  const [selectedHour, setSelectedHour] = useState<number | null>(null)
+
   const todayLabel = new Date().toLocaleDateString(i18n.language, { day: 'numeric', month: 'long' })
   const today = dateKey(new Date())
-  // `analytics` is populated by mergeUsageStats() (see hooks/useAppMonitor.ts),
-  // fed by the real native AccessibilityService (modules/blocker) — it's
-  // empty until that service is enabled and has observed some usage, not
-  // mock data standing in for it. Every section below shows an honest
-  // "not tracked" state instead of fabricated numbers when it's empty.
+  // `analytics` is populated by mergeUsageStats()/mergeHourlyUsageStats()
+  // (see hooks/useAppMonitor.ts), fed by the real native
+  // AccessibilityService (modules/blocker) — it's empty until that service
+  // is enabled and has observed some usage, not mock data standing in for
+  // it. Every section below shows an honest "not tracked" state instead of
+  // fabricated numbers when it's empty.
   const todayRecord = analytics.find(a => a.date === today) ?? null
 
   const categoryTotals = todayRecord ? getCategoryBreakdown(todayRecord.appUsage, []) : null
@@ -62,15 +75,43 @@ export default function AnalyticsScreen() {
   const productivityPct = categoryTotal > 0 ? Math.round(((categoryTotals?.productivity ?? 0) / categoryTotal) * 100) : 0
   const distractionPct = categoryTotal > 0 ? Math.round(((categoryTotals?.distraction ?? 0) / categoryTotal) * 100) : 0
 
+  const hourlyBars = useMemo(() => {
+    const hourlyUsage = todayRecord?.hourlyUsage ?? {}
+    return Array.from({ length: 24 }, (_, h) => {
+      const usageForHour = hourlyUsage[String(h)] ?? {}
+      const totals = getCategoryBreakdown(usageForHour, [])
+      const segments = CATEGORY_ORDER_4
+        .filter(cat => totals[cat] > 0)
+        .map(cat => ({ key: cat, value: totals[cat], color: CATEGORY_META[cat].color }))
+      return { label: String(h), segments }
+    })
+  }, [todayRecord])
+  const hasHourlyData = hourlyBars.some(b => b.segments.length > 0)
+
+  const onHourPress = (index: number) => {
+    if (hourlyBars[index].segments.length === 0) return
+    setSelectedHour(prev => (prev === index ? null : index))
+  }
+
   const historyEntries = useMemo(() => {
     if (!todayRecord) return []
-    return Object.entries(todayRecord.appUsage)
-      .map(([packageName, minutes]) => ({
-        name: blockedApps.find(a => a.packageName === packageName)?.appName ?? packageName,
-        minutes,
-      }))
+    const source = selectedHour != null
+      ? (todayRecord.hourlyUsage?.[String(selectedHour)] ?? {})
+      : todayRecord.appUsage
+    return Object.entries(source)
+      .map(([packageName, minutes]) => {
+        const category = categorizeApp(packageName)
+        return {
+          packageName,
+          name: resolveAppName(packageName),
+          icon: appInfo.get(packageName)?.icon,
+          minutes,
+          category,
+        }
+      })
       .sort((a, b) => b.minutes - a.minutes)
-  }, [todayRecord, blockedApps])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayRecord, selectedHour, appInfo, blockedApps])
 
   const last7Days = useMemo(() => Array.from({ length: 7 }, (_, i) => {
     const d = new Date()
@@ -114,20 +155,47 @@ export default function AnalyticsScreen() {
         </Animated.View>
       </View>
 
+      {/* Utilisation heure par heure — barres empilées par catégorie, réelles (todayRecord.hourlyUsage) */}
+      <Animated.View entering={FadeInDown.delay(220).duration(400)}>
+        <ChartContainer title={t('hourlyChart')} description={t('hourlyDesc')}>
+          {!hasHourlyData ? (
+            <EmptyChartState label={t('noData')} hint={t('trackingHint')} borderColor={border} />
+          ) : (
+            <StackedBarChart
+              data={hourlyBars}
+              config={{ height: 150, labelEvery: 4 }}
+              selectedIndex={selectedHour}
+              onBarPress={(index) => onHourPress(index)}
+            />
+          )}
+        </ChartContainer>
+      </Animated.View>
+
       {/* Historique de navigation — données réelles (store.analytics), alimentées par le vrai moteur natif (modules/blocker) via mergeUsageStats() */}
       <Animated.View entering={FadeInDown.delay(260).duration(400)}>
-        <ChartContainer title={t('history')} description={`${tc('today')} · ${todayLabel}`}>
+        <ChartContainer
+          title={t('history')}
+          description={selectedHour != null ? t('filteredByHour', { hour: selectedHour }) : `${tc('today')} · ${todayLabel}`}
+        >
           {historyEntries.length === 0 ? (
             <EmptyChartState label={t('noNavigation')} hint={t('trackingHint')} borderColor={border} />
           ) : (
             <View style={{ gap: 4 }}>
-              {historyEntries.map(entry => (
-                <View key={entry.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }}>
-                  <EntryIcon name={entry.name} type="app" color={violet} />
-                  <Text style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>{entry.name}</Text>
-                  <Text variant="caption" style={{ fontSize: 12, fontFamily: 'monospace' }}>{formatMinutes(entry.minutes)}</Text>
-                </View>
-              ))}
+              {historyEntries.map(entry => {
+                const categoryMeta = CATEGORY_META[entry.category]
+                return (
+                  <View key={entry.packageName} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }}>
+                    <AppIcon appName={entry.name} icon={entry.icon} size={30} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13 }} numberOfLines={1}>{entry.name}</Text>
+                      <Text style={{ fontSize: 10, marginTop: 1, color: categoryMeta.color }}>
+                        {categoryMeta.emoji} {tc(categoryMeta.labelKey)}
+                      </Text>
+                    </View>
+                    <Text variant="caption" style={{ fontSize: 12, fontFamily: 'monospace' }}>{formatMinutes(entry.minutes)}</Text>
+                  </View>
+                )
+              })}
             </View>
           )}
         </ChartContainer>

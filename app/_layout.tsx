@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { I18nManager, Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
 import * as SplashScreen from 'expo-splash-screen'
@@ -23,6 +23,7 @@ import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold'
 import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold'
 import { ThemeProvider } from '@/theme/theme-provider'
 import { AppSplashScreen } from '@/components/AppSplashScreen'
+import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow'
 import { PermissionsOnboarding } from '@/components/PermissionsOnboarding'
 import { supabase } from '@/lib/supabase'
 import { fetchSubscription } from '@/lib/subscription'
@@ -65,12 +66,30 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const { setUser, setSubscription, setAuthCachedAt, logout, hasSeenPermissionsOnboarding, completePermissionsOnboarding } = useAppStore()
+  const {
+    setUser, setSubscription, setAuthCachedAt, logout,
+    hasCompletedOnboarding, completeOnboarding,
+    hasSeenPermissionsOnboarding, completePermissionsOnboarding,
+  } = useAppStore()
   const colorScheme = useColorScheme()
+  const router = useRouter()
   const [sessionLoaded, setSessionLoaded] = useState(false)
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null)
   // Always mounted (not gated behind the splash/onboarding screens below)
   // so blocklist sync and usage-stat pulls keep running continuously.
   useAppMonitor()
+
+  // The Paywall's "See Premium plans" CTA wants to land on /pricing, but at
+  // that point the real <Stack> below isn't mounted yet — onboarding and
+  // permissions are both pre-Stack gates, so there's no navigator to push
+  // into until both have cleared. Defer it: this effect (which runs after
+  // commit) only fires once the Stack has actually mounted.
+  useEffect(() => {
+    if (hasCompletedOnboarding && hasSeenPermissionsOnboarding && pendingRoute) {
+      router.push(pendingRoute)
+      setPendingRoute(null)
+    }
+  }, [hasCompletedOnboarding, hasSeenPermissionsOnboarding, pendingRoute])
   const [fontsLoaded] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold,
     Montserrat_700Bold,
@@ -122,6 +141,22 @@ function RootLayoutNav() {
 
   if (!fontsLoaded) return null
   if (!sessionLoaded) return <AppSplashScreen />
+
+  if (!hasCompletedOnboarding) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider>
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          <OnboardingFlow
+            onDone={(route) => {
+              completeOnboarding()
+              if (route) setPendingRoute(route)
+            }}
+          />
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    )
+  }
 
   if (!hasSeenPermissionsOnboarding) {
     return (

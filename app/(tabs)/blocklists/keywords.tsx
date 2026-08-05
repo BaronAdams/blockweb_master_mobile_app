@@ -8,6 +8,7 @@ import { AppHeader } from '@/components/AppHeader'
 import { SubScreenHeader } from '@/components/SubScreenHeader'
 import { BlockListRow } from '@/components/BlockListRow'
 import { LimitBadge, EmptyState, AddRow } from '@/components/blocklist-ui'
+import { AccessibilityWarningBanner } from '@/components/AccessibilityWarningBanner'
 import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
 import { limitsFor, isPremium } from '@/utils/limits'
@@ -39,6 +40,7 @@ export default function KeywordsBlockListScreen() {
       <AppHeader />
       <SubScreenHeader title={t('blockedKeywords')} right={<LimitBadge count={keywords.length} max={limits.maxKeywords} />} />
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
+        <AccessibilityWarningBanner active={keywords.length > 0} />
         <AddRow
           value={input}
           onChangeText={setInput}
