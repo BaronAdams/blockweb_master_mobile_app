@@ -1,0 +1,106 @@
+name: Flutter build
+
+# Builds the Flutter port (flutter_app/) — separate from the RN/Expo app
+# at the repo root, which keeps its own EAS build flow untouched.
+#
+# Runs on every push to main/master, regardless of which files changed —
+# per explicit request, this is the CI signal for "is the Flutter port
+# still buildable," so it shouldn't stay silent just because a given
+# commit didn't touch flutter_app/. Pull requests keep the narrower
+# path filter, so PRs unrelated to the Flutter port don't wait on it.
+#
+# NOT YET VERIFIED END TO END: this workflow, and the flutter_app/android
+# project it builds, were written without access to a Flutter/Gradle/Xcode
+# toolchain (this dev environment has none). Review the first real run's
+# logs closely and expect to fix version-drift issues (Flutter/AGP/Gradle/
+# Kotlin version pairing) before it goes green.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    paths:
+      - 'flutter_app/**'
+      - '.github/workflows/flutter-build.yml'
+  workflow_dispatch: {}
+
+defaults:
+  run:
+    working-directory: flutter_app
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Regenerate Gradle wrapper
+        # gradle-wrapper.jar is a binary file and isn't committed (see
+        # android/.gitignore) — regenerated here from the pinned version in
+        # android/gradle/wrapper/gradle-wrapper.properties using the Gradle
+        # preinstalled on GitHub-hosted ubuntu-latest runners.
+        working-directory: flutter_app/android
+        run: gradle wrapper --gradle-version 8.7 --distribution-type all
+
+      - name: flutter build apk
+        run: flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          # Suffixed "-flutter" to stay distinct from build.yml's RN/EAS
+          # workflow, which uploads its Android build as
+          # "blockweb-master-android" — the two coexist during the migration.
+          name: blockweb-master-android-flutter
+          path: flutter_app/build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
+
+  ios:
+    name: iOS (unsigned)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate iOS platform project
+        # ios/ is intentionally not committed yet (see flutter_app/.gitignore)
+        # — hand-writing an Xcode project file without Xcode available to
+        # validate it is too fragile to risk, so it's generated fresh here
+        # from the real Flutter SDK on every run instead. Safe/idempotent:
+        # `flutter create` only adds the platform folders that are missing,
+        # it won't touch existing lib/ or pubspec.yaml.
+        run: flutter create --platforms=ios --org com.blockwebmaster .
+
+      - run: flutter pub get
+
+      - name: flutter build ios (unsigned)
+        # No Apple Developer signing certificates are configured yet (see
+        # task tracking — deliberately deferred until real certs/profiles
+        # exist as GitHub secrets), so this produces an unsigned .app
+        # runnable in the iOS Simulator only, not an installable .ipa.
+        # Once signing secrets exist, add an `xcodebuild -exportArchive`
+        # step here with a real export options plist to produce a signed
+        # .ipa for TestFlight/ad-hoc distribution.
+        run: flutter build ios --release --no-codesign
+
+      - name: Zip unsigned .app
+        run: |
+          cd build/ios/iphoneos
+          zip -r BlockWebMaster-unsigned.app.zip Runner.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blockweb-master-ios-flutter-unsigned
+          path: flutter_app/build/ios/iphoneos/BlockWebMaster-unsigned.app.zip
+          if-no-files-found: error

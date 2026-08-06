@@ -1,0 +1,41 @@
+name: blockweb_master
+description: "BlockWeb Master — phone & website blocker (Flutter port)."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+# Deps added incrementally as each screen is ported from the RN app
+# (phase 2), not speculatively up front.
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1        # Zustand equivalent — same "small atomic stores" ergonomics
+  go_router: ^14.2.0               # equivalent of expo-router's file-based navigation
+  shared_preferences: ^2.2.3       # equivalent of the RN app's AsyncStorage-backed Zustand persist
+  intl: ^0.19.0
+  supabase_flutter: ^2.5.6         # same backend as lib/supabase.ts in the RN app
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/locales/ar/messages.json
+    - assets/locales/de/messages.json
+    - assets/locales/en/messages.json
+    - assets/locales/es/messages.json
+    - assets/locales/fr/messages.json
+    - assets/locales/hi/messages.json
+    - assets/locales/it/messages.json
+    - assets/locales/ja/messages.json
+    - assets/locales/ko/messages.json
+    - assets/locales/nl/messages.json
+    - assets/locales/pl/messages.json
+    - assets/locales/pt_PT/messages.json
+    - assets/locales/ru/messages.json
+    - assets/locales/zh_CN/messages.json

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder — a simple "block" ring-with-slash, standing in until the
+     real branded icon is ported over (screen-porting phase). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path
+        android:fillColor="#09090B"
+        android:pathData="M54,30 C40,30 30,40 30,54 C30,68 40,78 54,78 C68,78 78,68 78,54 C78,40 68,30 54,30 Z M54,36 C64.5,36 72,43.5 72,54 C72,58 70.7,61.6 68.6,64.6 L43.4,39.4 C46.4,37.3 50,36 54,36 Z M39.4,43.4 L64.6,68.6 C61.6,70.7 58,72 54,72 C43.5,72 36,64.5 36,54 C36,50 37.3,46.4 39.4,43.4 Z" />
+</vector>
