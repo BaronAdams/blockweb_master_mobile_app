@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../screens/auth/login_screen.dart';
+import '../screens/auth/register_screen.dart';
 import '../screens/placeholder_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -9,11 +11,16 @@ import '../theme/app_theme.dart';
 /// app/pricing) into go_router's declarative form. Every screen is a
 /// PlaceholderScreen until it's ported (phase 2) — this file's job is to
 /// prove the navigation graph now, not to finish the app.
+///
+/// initialLocation is the tabs shell, NOT /login: the RN app's
+/// app/_layout.tsx never gates the tabs behind auth (see task history —
+/// "Usage anonyme: retirer le mur d'authentification"). Login/register are
+/// reachable but optional, reached from the Account screen.
 final GoRouter appRouter = GoRouter(
-  initialLocation: '/login',
+  initialLocation: '/',
   routes: [
-    GoRoute(path: '/login', builder: (context, state) => const PlaceholderScreen(title: 'Login')),
-    GoRoute(path: '/register', builder: (context, state) => const PlaceholderScreen(title: 'Register')),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+    GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
     GoRoute(path: '/onboarding/permissions', builder: (context, state) => const PlaceholderScreen(title: 'Permissions')),
     GoRoute(path: '/onboarding/build-up', builder: (context, state) => const PlaceholderScreen(title: 'Build Up')),
     GoRoute(path: '/onboarding/paywall', builder: (context, state) => const PlaceholderScreen(title: 'Paywall')),

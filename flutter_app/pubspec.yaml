@@ -6,11 +6,8 @@ version: 1.0.0+1
 environment:
   sdk: '>=3.4.0 <4.0.0'
 
-# Kept intentionally small for the phase-1 scaffold — the goal here is a
-# compiling shell (theme + routing + i18n + native bridge) that the CI
-# pipeline can build end to end. Screen-specific deps (charts, animations)
-# get added alongside each screen as it's ported from the RN app, not
-# speculatively up front.
+# Deps added incrementally as each screen is ported from the RN app
+# (phase 2), not speculatively up front.
 dependencies:
   flutter:
     sdk: flutter
@@ -18,6 +15,7 @@ dependencies:
   go_router: ^14.2.0               # equivalent of expo-router's file-based navigation
   shared_preferences: ^2.2.3       # equivalent of the RN app's AsyncStorage-backed Zustand persist
   intl: ^0.19.0
+  supabase_flutter: ^2.5.6         # same backend as lib/supabase.ts in the RN app
 
 dev_dependencies:
   flutter_test:

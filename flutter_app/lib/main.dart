@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'l10n/i18n_service.dart';
+import 'native/supabase_client.dart';
 import 'router/app_router.dart';
 import 'state/app_settings.dart';
 import 'theme/app_colors.dart';
@@ -12,6 +13,7 @@ Future<void> main() async {
 
   final i18n = I18nService();
   await i18n.init();
+  await initSupabase();
 
   runApp(
     ProviderScope(
