@@ -93,7 +93,11 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
 
     void onDone() {
       notifier.completePermissionsOnboarding();
-      context.go('/');
+      // Continues wherever the user was headed before the router's
+      // redirect diverted them here (e.g. Paywall's "See Premium plans"
+      // wants /pricing) — see router/app_router.dart's `next` param.
+      final next = GoRouterState.of(context).uri.queryParameters['next'];
+      context.go(next != null && next.isNotEmpty ? Uri.decodeComponent(next) : '/');
     }
 
     return Scaffold(
