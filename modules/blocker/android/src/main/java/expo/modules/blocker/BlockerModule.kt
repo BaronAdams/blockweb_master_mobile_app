@@ -83,6 +83,11 @@ class BlockerModule : Module() {
       val packages = prefs.getStringSet("${BlockAccessibilityService.STATS_PREFIX}$day:packages", emptySet()) ?: emptySet()
       val dayUsage = mutableMapOf<String, Double>()
       for (pkg in packages) {
+        // Filters out launcher/systemui/keyboard even if they were
+        // recorded by an older build — the JS side replaces each day's
+        // data wholesale with what this returns, so this retroactively
+        // cleans already-stored bad entries too.
+        if (!TrackablePackages.isTrackable(context, pkg)) continue
         val minutes = prefs.getFloat("${BlockAccessibilityService.STATS_PREFIX}$day:$pkg", 0f)
         if (minutes > 0f) dayUsage[pkg] = minutes.toDouble()
       }
@@ -108,6 +113,7 @@ class BlockerModule : Module() {
         val packages = prefs.getStringSet("$hourlyPrefix$day:$hour:packages", emptySet()) ?: emptySet()
         val hourUsage = mutableMapOf<String, Double>()
         for (pkg in packages) {
+          if (!TrackablePackages.isTrackable(context, pkg)) continue
           val minutes = prefs.getFloat("$hourlyPrefix$day:$hour:$pkg", 0f)
           if (minutes > 0f) hourUsage[pkg] = minutes.toDouble()
         }

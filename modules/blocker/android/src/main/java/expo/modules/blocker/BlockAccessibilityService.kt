@@ -88,6 +88,10 @@ class BlockAccessibilityService : AccessibilityService() {
   private fun recordElapsed(now: Long) {
     val pkg = lastPackageName ?: return
     if (pkg == this.packageName) return
+    // Don't attribute dwell time to the launcher/systemui/keyboard — they
+    // foreground constantly as a side effect of navigation, not because
+    // the user opened them (see TrackablePackages for why).
+    if (!TrackablePackages.isTrackable(applicationContext, pkg)) return
     if (lastEventTimeMs <= 0L) return
     val elapsedMs = now - lastEventTimeMs
     // Guard against device sleep / service restarts producing bogus jumps.
