@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { AppState as RNAppState, type AppStateStatus } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store/useAppStore'
 import * as Blocker from '@/modules/blocker'
+import { buildBlockScreenStrings } from '@/lib/blockedScreenStrings'
 
 /**
  * Bridges the store's blocklists/analytics to the real native blocking
@@ -31,6 +33,7 @@ export function useAppMonitor() {
   const setOverlayPermissionGranted = useAppStore(s => s.setOverlayPermissionGranted)
   const setDeviceAdminActive = useAppStore(s => s.setDeviceAdminActive)
   const isAccessibilityEnabled = useAppStore(s => s.isAccessibilityEnabled)
+  const { t, i18n } = useTranslation('blocked')
 
   const blockedAppsKey = blockedApps.filter(a => a.isBlocked).map(a => a.packageName).sort().join(',')
   const blockedDomainsKey = blockedWebsites.filter(w => w.isBlocked).map(w => w.domain).sort().join(',')
@@ -56,6 +59,13 @@ export function useAppMonitor() {
     lastSyncedKeywords.current = blockedKeywordsKey
     Blocker.setBlockedKeywords(blockedKeywordsKey ? blockedKeywordsKey.split(',') : [])
   }, [blockedKeywordsKey])
+
+  // Pushes the block overlay's localized strings bundle to native — see
+  // lib/blockedScreenStrings.ts — on mount and whenever the app's language
+  // changes, so the WebView-rendered overlay never needs its own i18n.
+  useEffect(() => {
+    Blocker.setBlockScreenStrings(JSON.stringify(buildBlockScreenStrings(t)))
+  }, [t, i18n.language])
 
   useEffect(() => {
     const refresh = async () => {

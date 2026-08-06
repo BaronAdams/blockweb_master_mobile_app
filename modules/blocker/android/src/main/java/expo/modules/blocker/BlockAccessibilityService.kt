@@ -72,7 +72,7 @@ class BlockAccessibilityService : AccessibilityService() {
       }
 
       if (isBlocked(packageName)) {
-        overlay.show(packageName, "Application bloquée", "")
+        overlay.show(packageName, "app", "")
         return
       } else {
         overlay.dismiss()
@@ -161,14 +161,14 @@ class BlockAccessibilityService : AccessibilityService() {
     val host = BrowserUrlWatcher.extractHost(url)
     val blockedDomain = blockedDomains().firstOrNull { BrowserUrlWatcher.domainMatches(host, it) }
     if (blockedDomain != null) {
-      overlay.show(packageName, "Site bloqué", blockedDomain)
+      overlay.show(packageName, "site", blockedDomain)
       return
     }
 
     val lowerUrl = url.lowercase()
     val blockedKeyword = blockedKeywords().firstOrNull { lowerUrl.contains(it.lowercase()) }
     if (blockedKeyword != null) {
-      overlay.show(packageName, "Contenu bloqué", "Mot-clé : $blockedKeyword")
+      overlay.show(packageName, "keyword", blockedKeyword)
     }
   }
 

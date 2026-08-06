@@ -54,6 +54,12 @@ class BlockerModule : Module() {
     AsyncFunction("requestDeviceAdmin") { explanation: String ->
       requestDeviceAdmin(explanation)
     }
+
+    AsyncFunction("setBlockScreenStrings") { json: String ->
+      prefs().edit()
+        .putString(BlockOverlay.BLOCK_SCREEN_STRINGS_KEY, json)
+        .apply()
+    }
   }
 
   private fun devicePolicyManager(): DevicePolicyManager =
