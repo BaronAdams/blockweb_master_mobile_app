@@ -1,9 +1,13 @@
 name: Flutter build
 
 # Builds the Flutter port (flutter_app/) — separate from the RN/Expo app
-# at the repo root, which keeps its own EAS build flow untouched. Scoped
-# to flutter_app/ changes so it doesn't run on every unrelated RN commit
-# while both apps coexist during the migration.
+# at the repo root, which keeps its own EAS build flow untouched.
+#
+# Runs on every push to main/master, regardless of which files changed —
+# per explicit request, this is the CI signal for "is the Flutter port
+# still buildable," so it shouldn't stay silent just because a given
+# commit didn't touch flutter_app/. Pull requests keep the narrower
+# path filter, so PRs unrelated to the Flutter port don't wait on it.
 #
 # NOT YET VERIFIED END TO END: this workflow, and the flutter_app/android
 # project it builds, were written without access to a Flutter/Gradle/Xcode
@@ -14,9 +18,6 @@ name: Flutter build
 on:
   push:
     branches: [main, master]
-    paths:
-      - 'flutter_app/**'
-      - '.github/workflows/flutter-build.yml'
   pull_request:
     paths:
       - 'flutter_app/**'
