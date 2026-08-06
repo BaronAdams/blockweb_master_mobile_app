@@ -66,6 +66,11 @@ class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHand
           result.success(null)
         }
 
+        "openAndroidSettings" -> {
+          openSettings(call.argument<String>("action") ?: "")
+          result.success(null)
+        }
+
         else -> result.notImplemented()
       }
     } catch (e: Exception) {
@@ -94,6 +99,19 @@ class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHand
     } catch (e: Exception) {
       // No Settings app able to handle this on some OEM builds — the
       // Strict Mode screen just keeps showing "not active" in that case.
+    }
+  }
+
+  /** Opens a system Settings screen by action string (e.g.
+   *  Settings.ACTION_ACCESSIBILITY_SETTINGS) — used by the "Enable" button
+   *  on AccessibilityWarningBanner (Dart side). */
+  private fun openSettings(action: String) {
+    if (action.isEmpty()) return
+    try {
+      val intent = Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      context.startActivity(intent)
+    } catch (e: Exception) {
+      // No Settings screen able to handle this action on some OEM builds.
     }
   }
 

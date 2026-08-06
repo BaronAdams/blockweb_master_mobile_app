@@ -96,6 +96,16 @@ class BlockerBridge {
     } catch (_) {}
   }
 
+  /// Opens a system Settings screen by action string, e.g.
+  /// "android.settings.ACCESSIBILITY_SETTINGS" — used by
+  /// AccessibilityWarningBanner's "Enable" button.
+  static Future<void> openAndroidSettings(String action) async {
+    if (!_supported) return;
+    try {
+      await _channel.invokeMethod('openAndroidSettings', {'action': action});
+    } catch (_) {}
+  }
+
   /// Pushes the block overlay's localized strings bundle — see
   /// lib/blockedScreenStrings.ts for the RN-side equivalent this needs to
   /// be re-implemented as once screens are ported (phase 2).

@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/placeholder_screen.dart';
+import '../screens/tabs/blocklists/blocklists_index_screen.dart';
+import '../screens/tabs/blocklists/keywords_screen.dart';
+import '../screens/tabs/blocklists/websites_screen.dart';
+import '../screens/tabs/blocklists/whitelist_screen.dart';
 import '../theme/app_theme.dart';
 
 /// Route map — a straight translation of the RN app's file-based routes
@@ -39,11 +43,14 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state, child) => _TabsShell(child: child),
       routes: [
         GoRoute(path: '/', builder: (context, state) => const PlaceholderScreen(title: 'Analytics')),
-        GoRoute(path: '/blocklists', builder: (context, state) => const PlaceholderScreen(title: 'Block Lists')),
+        GoRoute(path: '/blocklists', builder: (context, state) => const BlocklistsIndexScreen()),
+        // Still a placeholder: needs a native "list installed apps" bridge
+        // that hasn't been ported yet (separate from the blocking-engine
+        // MethodChannel — see hooks/useInstalledApps.ts in the RN app).
         GoRoute(path: '/blocklists/apps', builder: (context, state) => const PlaceholderScreen(title: 'Blocked Apps')),
-        GoRoute(path: '/blocklists/keywords', builder: (context, state) => const PlaceholderScreen(title: 'Blocked Keywords')),
-        GoRoute(path: '/blocklists/websites', builder: (context, state) => const PlaceholderScreen(title: 'Blocked Websites')),
-        GoRoute(path: '/blocklists/whitelist', builder: (context, state) => const PlaceholderScreen(title: 'Whitelist')),
+        GoRoute(path: '/blocklists/keywords', builder: (context, state) => const KeywordsScreen()),
+        GoRoute(path: '/blocklists/websites', builder: (context, state) => const WebsitesScreen()),
+        GoRoute(path: '/blocklists/whitelist', builder: (context, state) => const WhitelistScreen()),
         GoRoute(path: '/profiles', builder: (context, state) => const PlaceholderScreen(title: 'Limiter Profiles')),
         GoRoute(path: '/strictmode', builder: (context, state) => const PlaceholderScreen(title: 'Strict Mode')),
         GoRoute(path: '/account', builder: (context, state) => const PlaceholderScreen(title: 'Account')),
