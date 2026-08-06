@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Standard Flutter template launch background — a plain white splash
+     while the process starts. Swap for a real branded splash (matching
+     the RN app's amber-on-black/white icon splash) once assets are
+     ported over in the screen-porting phase. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/white" />
+</layer-list>
