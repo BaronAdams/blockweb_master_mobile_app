@@ -3,7 +3,11 @@ import 'package:go_router/go_router.dart';
 
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
-import '../screens/placeholder_screen.dart';
+import '../screens/blocked_screen.dart';
+import '../screens/onboarding/build_up_flow_screen.dart';
+import '../screens/onboarding/paywall_screen.dart';
+import '../screens/onboarding/permissions_screen.dart';
+import '../screens/pricing_screen.dart';
 import '../screens/tabs/analytics_screen.dart';
 import '../screens/tabs/blocklists/apps_screen.dart';
 import '../screens/tabs/blocklists/blocklists_index_screen.dart';
@@ -20,9 +24,13 @@ import '../theme/app_theme.dart';
 
 /// Route map — a straight translation of the RN app's file-based routes
 /// (app/(auth)/*, app/(tabs)/*, app/profiles/create/[type], app/blocked,
-/// app/pricing) into go_router's declarative form. Every screen is a
-/// PlaceholderScreen until it's ported (phase 2) — this file's job is to
-/// prove the navigation graph now, not to finish the app.
+/// app/pricing) into go_router's declarative form. Every route now has a
+/// real ported screen behind it (phase 2) — still missing: the root-layout
+/// level logic that decides which screen to land on first (font loading,
+/// the 7-day auth grace window, onboarding/permissions gating — see
+/// app/_layout.tsx's RootLayoutNav in the RN app) hasn't been ported, so
+/// this always boots straight to the tabs shell regardless of onboarding
+/// state.
 ///
 /// initialLocation is the tabs shell, NOT /login: the RN app's
 /// app/_layout.tsx never gates the tabs behind auth (see task history —
@@ -33,11 +41,20 @@ final GoRouter appRouter = GoRouter(
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
-    GoRoute(path: '/onboarding/permissions', builder: (context, state) => const PlaceholderScreen(title: 'Permissions')),
-    GoRoute(path: '/onboarding/build-up', builder: (context, state) => const PlaceholderScreen(title: 'Build Up')),
-    GoRoute(path: '/onboarding/paywall', builder: (context, state) => const PlaceholderScreen(title: 'Paywall')),
-    GoRoute(path: '/pricing', builder: (context, state) => const PlaceholderScreen(title: 'Pricing')),
-    GoRoute(path: '/blocked', builder: (context, state) => const PlaceholderScreen(title: 'Blocked')),
+    GoRoute(path: '/onboarding/permissions', builder: (context, state) => const PermissionsScreen()),
+    GoRoute(path: '/onboarding/build-up', builder: (context, state) => const BuildUpFlowScreen()),
+    GoRoute(
+      path: '/onboarding/paywall',
+      builder: (context, state) => PaywallScreen(reclaimedHours: state.extra as int? ?? 0),
+    ),
+    GoRoute(path: '/pricing', builder: (context, state) => const PricingScreen()),
+    GoRoute(
+      path: '/blocked',
+      builder: (context, state) => BlockedScreen(
+        reason: state.uri.queryParameters['reason'] ?? 'app',
+        value: state.uri.queryParameters['value'] ?? 'Instagram',
+      ),
+    ),
     // Outside the ShellRoute on purpose — like the RN app's Stack.Screen
     // siblings of (tabs), these render full-screen without the bottom nav.
     GoRoute(path: '/profiles/create', builder: (context, state) => const ChooseProfileTypeScreen()),
