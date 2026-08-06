@@ -5,10 +5,18 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.text.TextUtils
+import android.util.Base64
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayOutputStream
 
 /**
  * Flutter MethodChannel counterpart of the RN app's Expo module
@@ -71,6 +79,21 @@ class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHand
           result.success(null)
         }
 
+        "getInstalledApps" -> {
+          // Enumerating + icon-rendering every launchable app is too slow
+          // for the platform (UI) thread this handler normally runs on —
+          // do it on a background thread and post the result back, rather
+          // than risking jank/ANR on a large device.
+          Thread {
+            val apps = try {
+              loadInstalledApps()
+            } catch (e: Exception) {
+              emptyList()
+            }
+            Handler(Looper.getMainLooper()).post { result.success(apps) }
+          }.start()
+        }
+
         else -> result.notImplemented()
       }
     } catch (e: Exception) {
@@ -113,6 +136,67 @@ class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHand
     } catch (e: Exception) {
       // No Settings screen able to handle this action on some OEM builds.
     }
+  }
+
+  /**
+   * Port of the RN app's react-native-launcher-kit usage
+   * (hooks/useInstalledApps.ts) as plain PackageManager calls — no
+   * third-party library needed. ACTION_MAIN + CATEGORY_LAUNCHER is the
+   * standard "what shows up on the home screen" query, which naturally
+   * excludes background-only system components the same way a launcher
+   * would, without needing per-package heuristics. Sorted by label,
+   * matching getSortedApps' default order.
+   */
+  private fun loadInstalledApps(): List<Map<String, String?>> {
+    val pm = context.packageManager
+    val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+    val resolveInfos = pm.queryIntentActivities(intent, 0)
+    val seen = HashSet<String>()
+    val result = mutableListOf<Map<String, String?>>()
+
+    for (info in resolveInfos) {
+      val packageName = info.activityInfo?.packageName ?: continue
+      if (packageName == context.packageName) continue
+      if (!seen.add(packageName)) continue
+
+      val label = try {
+        info.loadLabel(pm).toString()
+      } catch (e: Exception) {
+        packageName
+      }
+      val icon = try {
+        iconDataUri(info.loadIcon(pm))
+      } catch (e: Exception) {
+        null
+      }
+
+      result.add(mapOf("packageName" to packageName, "appName" to label, "icon" to icon))
+    }
+
+    return result.sortedBy { (it["appName"] ?: "").lowercase() }
+  }
+
+  private fun iconDataUri(drawable: Drawable): String? {
+    val bitmap = try {
+      drawableToBitmap(drawable)
+    } catch (e: Exception) {
+      return null
+    }
+    val stream = ByteArrayOutputStream()
+    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+    val base64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+    return "data:image/png;base64,$base64"
+  }
+
+  private fun drawableToBitmap(drawable: Drawable): Bitmap {
+    if (drawable is BitmapDrawable && drawable.bitmap != null) return drawable.bitmap
+    val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 96
+    val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 96
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    drawable.setBounds(0, 0, canvas.width, canvas.height)
+    drawable.draw(canvas)
+    return bitmap
   }
 
   private fun prefs(): SharedPreferences =

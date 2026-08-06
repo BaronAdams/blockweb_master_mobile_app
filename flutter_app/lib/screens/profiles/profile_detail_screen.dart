@@ -6,6 +6,7 @@ import '../../models/app_models.dart';
 import '../../models/profile_types.dart';
 import '../../state/app_settings.dart';
 import '../../state/app_store.dart';
+import '../../state/installed_apps.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../widgets/app_card.dart';
@@ -13,12 +14,10 @@ import '../../widgets/danger_button.dart';
 import '../../widgets/progress_bar.dart';
 import '../../widgets/section_title.dart';
 
-/// Port of app/profiles/[id].tsx. `watchedSites` lists profile.apps by
-/// package name rather than resolved app label — the RN screen only
-/// resolves labels via useInstalledApps(), which needs the same native
-/// "list installed apps" bridge that isn't ported yet (see
-/// create_profile_screen.dart's doc comment); it falls back to the raw
-/// package name when a lookup misses, same as here.
+/// Port of app/profiles/[id].tsx. Resolves profile.apps (package names) to
+/// display labels via installedAppsProvider, same as the RN screen's
+/// useInstalledApps() — falls back to the raw package name when a lookup
+/// misses (e.g. the app was uninstalled since it was added to the profile).
 class ProfileDetailScreen extends ConsumerWidget {
   final String id;
   const ProfileDetailScreen({super.key, required this.id});
@@ -91,7 +90,19 @@ class ProfileDetailScreen extends ConsumerWidget {
     final remainingMinutes = (limitMinutes - usedMinutes).clamp(0, double.infinity);
     final strictModeActive = store.strictMode.isActive;
 
-    final watchedNames = [...profile.apps, ...profile.websites, ...profile.keywords];
+    final installedApps = ref.watch(installedAppsProvider).value ?? const [];
+    String resolveAppLabel(String packageName) {
+      for (final app in installedApps) {
+        if (app.packageName == packageName) return app.appName;
+      }
+      return packageName;
+    }
+
+    final watchedNames = [
+      ...profile.apps.map(resolveAppLabel),
+      ...profile.websites,
+      ...profile.keywords,
+    ];
 
     return Scaffold(
       backgroundColor: colors.background,

@@ -7,8 +7,10 @@ import '../../models/limits.dart';
 import '../../models/profile_types.dart';
 import '../../state/app_settings.dart';
 import '../../state/app_store.dart';
+import '../../state/installed_apps.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/app_icon.dart';
 import '../../widgets/app_input.dart';
 import '../../widgets/blocklist_ui.dart';
 import '../../widgets/section_title.dart';
@@ -30,11 +32,7 @@ const Map<LimiterType, String> _limitKeyByType = {
   LimiterType.weekly: 'weeklyLimit',
 };
 
-/// Port of app/profiles/create/[type].tsx. The installed-apps picker
-/// section is a placeholder ("not yet available") rather than a real list —
-/// it needs a native "list installed apps" bridge that hasn't been ported
-/// to Flutter yet (see the same gap noted on blocklists/apps). Website and
-/// keyword entry work fully today since they don't depend on that bridge.
+/// Port of app/profiles/create/[type].tsx.
 class CreateProfileScreen extends ConsumerStatefulWidget {
   final String typeParam;
   const CreateProfileScreen({super.key, required this.typeParam});
@@ -53,6 +51,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
   final List<String> _websites = [];
   final List<String> _keywords = [];
+  final Set<String> _selectedApps = {};
   List<DayOfWeek> _selectedDays = [DayOfWeek.mon, DayOfWeek.tue, DayOfWeek.wed, DayOfWeek.thu, DayOfWeek.fri];
 
   @override
@@ -97,9 +96,21 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
     final meta = profileTypeMeta[_type]!;
     final limits = limitsFor(store.plan);
-    final totalElements = _websites.length + _keywords.length;
+    final totalElements = _selectedApps.length + _websites.length + _keywords.length;
     final atLimit = !isPremium(store.plan) && totalElements >= limits.maxAppsPerProfile;
     final canSubmit = _name.text.trim().isNotEmpty && totalElements > 0;
+    final installedAppsAsync = ref.watch(installedAppsProvider);
+
+    void toggleApp(String packageName) {
+      setState(() {
+        if (_selectedApps.contains(packageName)) {
+          _selectedApps.remove(packageName);
+        } else {
+          if (!isPremium(store.plan) && totalElements >= limits.maxAppsPerProfile) return;
+          _selectedApps.add(packageName);
+        }
+      });
+    }
 
     void addWebsite() {
       if (atLimit) return;
@@ -138,7 +149,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
         id: '$now',
         name: _name.text.trim(),
         type: _type,
-        apps: const [],
+        apps: _selectedApps.toList(),
         websites: _websites,
         keywords: _keywords,
         isActive: true,
@@ -199,18 +210,62 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                     LimitBadge(count: totalElements, max: isPremium(store.plan) ? double.infinity : limits.maxAppsPerProfile),
                   ],
                 ),
+                // Bounded height so a long installed-apps list doesn't push
+                // the rest of the form off screen — scrolls independently.
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  constraints: const BoxConstraints(maxHeight: 260),
                   decoration: BoxDecoration(
                     color: colors.card,
                     border: Border.all(color: colors.border),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Text(
-                    // App-based profile members aren't available yet in this
-                    // build — see this file's doc comment.
-                    '${tb('noApp')} (bientôt disponible)',
-                    style: TextStyle(fontSize: 12, color: colors.mutedForeground),
+                  clipBehavior: Clip.antiAlias,
+                  child: installedAppsAsync.when(
+                    loading: () => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Center(child: CircularProgressIndicator(color: colors.primary)),
+                    ),
+                    error: (err, st) => Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(tb('noApp'), style: TextStyle(fontSize: 12, color: colors.mutedForeground)),
+                    ),
+                    data: (apps) => ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: apps.length,
+                      itemBuilder: (context, index) {
+                        final app = apps[index];
+                        final isSelected = _selectedApps.contains(app.packageName);
+                        final disabled = !isSelected && atLimit;
+                        return Opacity(
+                          opacity: disabled ? 0.4 : 1,
+                          child: InkWell(
+                            onTap: disabled ? null : () => toggleApp(app.packageName),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                              decoration: BoxDecoration(
+                                border: index == 0 ? null : Border(top: BorderSide(color: colors.border)),
+                              ),
+                              child: Row(
+                                children: [
+                                  AppIcon(appName: app.appName, icon: app.icon, size: 28),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: Text(app.appName, style: TextStyle(fontSize: 14, color: colors.foreground))),
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: isSelected ? colors.primary : colors.border, width: 1.5),
+                                      color: isSelected ? colors.primary : Colors.transparent,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),

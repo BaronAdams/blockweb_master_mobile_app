@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
 
+import '../models/installed_app.dart';
+
 /// Dart-side port of modules/blocker/index.ts. Talks to the native Android
 /// engine (android/app/.../blocker/BlockerBridge.kt — a straight Kotlin
 /// port of the old Expo module of the same responsibilities) over a single
@@ -114,6 +116,30 @@ class BlockerBridge {
     try {
       await _channel.invokeMethod('setBlockScreenStrings', {'json': json});
     } catch (_) {}
+  }
+
+  /// Real installed-apps listing (Android only) — port of the RN app's
+  /// react-native-launcher-kit usage in hooks/useInstalledApps.ts, done
+  /// natively instead (see BlockerBridge.kt's getInstalledApps). Returns an
+  /// empty list on iOS/web or on any native failure; callers fall back to a
+  /// curated popular-apps list the same way the RN hook does — see
+  /// lib/state/installed_apps.dart.
+  static Future<List<InstalledApp>> getInstalledApps() async {
+    if (!_supported) return [];
+    try {
+      final raw = await _channel.invokeMethod<List>('getInstalledApps');
+      if (raw == null) return [];
+      return raw
+          .cast<Map>()
+          .map((m) => InstalledApp(
+                packageName: m['packageName'] as String,
+                appName: m['appName'] as String,
+                icon: m['icon'] as String?,
+              ))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   static Map<String, Map<String, double>> _decodeNestedDoubleMap(Map? raw) {

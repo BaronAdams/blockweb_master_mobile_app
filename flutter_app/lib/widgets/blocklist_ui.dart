@@ -120,36 +120,45 @@ class BlockListRow extends StatelessWidget {
   final Widget icon;
   final String label;
   final VoidCallback? onRemove;
+  final bool locked;
 
-  const BlockListRow({super.key, required this.icon, required this.label, this.onRemove});
+  const BlockListRow({super.key, required this.icon, required this.label, this.onRemove, this.locked = false});
 
   @override
   Widget build(BuildContext context) {
     final colors = AppTheme.colorsOf(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-      decoration: BoxDecoration(
-        color: colors.card,
-        border: Border.all(color: colors.border),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          icon,
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.foreground)),
-          ),
-          if (onRemove != null)
-            InkWell(
-              onTap: onRemove,
-              borderRadius: BorderRadius.circular(16),
-              child: const Padding(
-                padding: EdgeInsets.all(8),
-                child: Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFF43F5E)),
-              ),
+    return Opacity(
+      opacity: locked ? 0.6 : 1,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        decoration: BoxDecoration(
+          color: colors.card,
+          border: Border.all(color: colors.border),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            icon,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.foreground)),
             ),
-        ],
+            if (locked)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(Icons.lock_outline_rounded, size: 15, color: colors.primary),
+              )
+            else if (onRemove != null)
+              InkWell(
+                onTap: onRemove,
+                borderRadius: BorderRadius.circular(16),
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFF43F5E)),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
