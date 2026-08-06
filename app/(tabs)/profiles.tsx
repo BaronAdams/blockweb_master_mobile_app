@@ -87,7 +87,13 @@ function ProfileCard({ profile, onPress }: { profile: LimiterProfile; onPress: (
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: '700' }}>{profile.name}</Text>
           <Text variant="caption" style={{ fontSize: 11 }}>
-            {`${t(profile.apps.length === 1 ? 'getSiteCount_one' : 'getSiteCount_other', { count: profile.apps.length })} · ${t(meta.labelKey)}`}
+            {(() => {
+              // `websites` guards profiles saved by an older build, before
+              // that field existed — AsyncStorage-persisted state is never
+              // schema-migrated, so it can genuinely be undefined here.
+              const count = profile.apps.length + (profile.websites?.length ?? 0) + (profile.keywords?.length ?? 0)
+              return `${t(count === 1 ? 'getSiteCount_one' : 'getSiteCount_other', { count })} · ${t(meta.labelKey)}`
+            })()}
           </Text>
         </View>
         <Badge variant="outline">{profile.isActive ? ts('activeShrt') : t('waiting')}</Badge>

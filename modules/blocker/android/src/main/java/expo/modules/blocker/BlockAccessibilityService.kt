@@ -50,6 +50,14 @@ class BlockAccessibilityService : AccessibilityService() {
   // ---- App switch / app blocking / usage tracking ------------------------
 
   private fun handleWindowStateChanged(packageName: String) {
+    // Adding our own overlay window can itself trigger an accessibility
+    // event reporting our package as foreground — that's not a real app
+    // switch, just the overlay window being added/laid out. Without this
+    // guard, the block below would read it as "user opened BlockWeb
+    // Master" and call overlay.dismiss() on the overlay we just showed,
+    // producing a blink where the blocked app is briefly interactable.
+    if (packageName == this.packageName && overlay.isActive()) return
+
     if (packageName != lastPackageName) {
       val now = SystemClock.elapsedRealtime()
       recordElapsed(now)

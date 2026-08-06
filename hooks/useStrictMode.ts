@@ -22,8 +22,8 @@ export function useStrictMode() {
     }
   }
 
-  const activate = (days: number) => {
-    activateStrictMode(days)
+  const activate = (seconds: number) => {
+    activateStrictMode(seconds)
   }
 
   return {

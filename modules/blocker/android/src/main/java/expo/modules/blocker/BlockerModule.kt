@@ -1,6 +1,9 @@
 package expo.modules.blocker
 
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.provider.Settings
 import android.text.TextUtils
 import expo.modules.kotlin.modules.Module
@@ -42,6 +45,34 @@ class BlockerModule : Module() {
 
     AsyncFunction("getHourlyUsageStats") {
       readHourlyUsageStats()
+    }
+
+    AsyncFunction("isDeviceAdminActive") {
+      devicePolicyManager().isAdminActive(deviceAdminComponent())
+    }
+
+    AsyncFunction("requestDeviceAdmin") { explanation: String ->
+      requestDeviceAdmin(explanation)
+    }
+  }
+
+  private fun devicePolicyManager(): DevicePolicyManager =
+    context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+
+  private fun deviceAdminComponent(): ComponentName =
+    ComponentName(context, BlockerDeviceAdminReceiver::class.java)
+
+  private fun requestDeviceAdmin(explanation: String) {
+    val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+      putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, deviceAdminComponent())
+      putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, explanation)
+      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    try {
+      context.startActivity(intent)
+    } catch (e: Exception) {
+      // No Settings app able to handle this on some OEM builds — the
+      // Strict Mode screen just keeps showing "not active" in that case.
     }
   }
 

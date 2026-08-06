@@ -44,6 +44,11 @@ class BlockOverlay(private val service: AccessibilityService) {
 
   fun isShowingFor(packageName: String): Boolean = shownForPackage == packageName
 
+  /** Whether an overlay window is currently on screen — used by the
+   *  service to ignore the accessibility event that adding this very
+   *  window can itself trigger (see BlockAccessibilityService). */
+  fun isActive(): Boolean = overlayView != null
+
   /**
    * @param packageName the app currently on screen (whose icon is shown —
    *   for a site/keyword match this is the browser, not a "blocked app").

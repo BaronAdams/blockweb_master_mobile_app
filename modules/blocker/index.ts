@@ -17,6 +17,8 @@ type BlockerNativeModule = {
   setBlockedKeywords(keywords: string[]): Promise<void>
   getUsageStats(): Promise<UsageStats>
   getHourlyUsageStats(): Promise<HourlyUsageStats>
+  isDeviceAdminActive(): Promise<boolean>
+  requestDeviceAdmin(explanation: string): Promise<void>
 }
 
 let native: BlockerNativeModule | null = null
@@ -96,5 +98,30 @@ export async function getHourlyUsageStats(): Promise<HourlyUsageStats> {
     return await native.getHourlyUsageStats()
   } catch {
     return {}
+  }
+}
+
+// Basic Android "Device Administrator" — the only uninstall-friction
+// mechanism available to a normal Play Store app. It requires deactivating
+// admin (Settings > Security) as an explicit extra step before uninstall
+// becomes possible; it is not an unremovable lock (a true one needs Device
+// Owner/Profile Owner, which requires enterprise provisioning this app
+// can't have), and both the user and this app can deactivate it at any time.
+export async function isDeviceAdminActive(): Promise<boolean> {
+  if (!native) return false
+  try {
+    return await native.isDeviceAdminActive()
+  } catch {
+    return false
+  }
+}
+
+export async function requestDeviceAdmin(explanation: string): Promise<void> {
+  if (!native) return
+  try {
+    await native.requestDeviceAdmin(explanation)
+  } catch {
+    // Best-effort — no system Settings screen able to handle this on some
+    // OEM builds must not crash the app.
   }
 }

@@ -66,6 +66,11 @@ export default function AppsBlockListScreen() {
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(packageName)) {
+        // Already-blocked apps can't be unchecked while Strict Mode is
+        // active — matches the store's own removeBlockedApp guard, kept
+        // here too since this only ever mutates local staged selection,
+        // not the store directly.
+        if (strictMode.isActive) return prev
         next.delete(packageName)
       } else {
         if (!isPremium(plan) && next.size >= limits.maxBlockedApps) return prev
@@ -140,7 +145,8 @@ export default function AppsBlockListScreen() {
           contentContainerStyle={{ gap: 8, paddingBottom: 100 }}
           renderItem={({ item }) => {
             const isSelected = selected.has(item.packageName)
-            const disabled = !isSelected && atLimit
+            const lockedByStrictMode = isSelected && strictMode.isActive
+            const disabled = (!isSelected && atLimit) || lockedByStrictMode
             return (
               <Pressable
                 onPress={() => toggle(item.packageName)}

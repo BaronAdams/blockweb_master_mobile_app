@@ -29,6 +29,7 @@ export function useAppMonitor() {
   const mergeHourlyUsageStats = useAppStore(s => s.mergeHourlyUsageStats)
   const setAccessibilityEnabled = useAppStore(s => s.setAccessibilityEnabled)
   const setOverlayPermissionGranted = useAppStore(s => s.setOverlayPermissionGranted)
+  const setDeviceAdminActive = useAppStore(s => s.setDeviceAdminActive)
   const isAccessibilityEnabled = useAppStore(s => s.isAccessibilityEnabled)
 
   const blockedAppsKey = blockedApps.filter(a => a.isBlocked).map(a => a.packageName).sort().join(',')
@@ -58,14 +59,16 @@ export function useAppMonitor() {
 
   useEffect(() => {
     const refresh = async () => {
-      const [enabled, overlayGranted, stats, hourlyStats] = await Promise.all([
+      const [enabled, overlayGranted, deviceAdminActive, stats, hourlyStats] = await Promise.all([
         Blocker.isAccessibilityServiceEnabled(),
         Blocker.isOverlayPermissionGranted(),
+        Blocker.isDeviceAdminActive(),
         Blocker.getUsageStats(),
         Blocker.getHourlyUsageStats(),
       ])
       setAccessibilityEnabled(enabled)
       setOverlayPermissionGranted(overlayGranted)
+      setDeviceAdminActive(deviceAdminActive)
       if (Object.keys(stats).length > 0) mergeUsageStats(stats)
       if (Object.keys(hourlyStats).length > 0) mergeHourlyUsageStats(hourlyStats)
     }
@@ -77,7 +80,7 @@ export function useAppMonitor() {
     }
     const subscription = RNAppState.addEventListener('change', onAppStateChange)
     return () => subscription.remove()
-  }, [mergeUsageStats, mergeHourlyUsageStats, setAccessibilityEnabled, setOverlayPermissionGranted])
+  }, [mergeUsageStats, mergeHourlyUsageStats, setAccessibilityEnabled, setOverlayPermissionGranted, setDeviceAdminActive])
 
   const isMonitoring = isAccessibilityEnabled && blockedApps.some(a => a.isBlocked)
 

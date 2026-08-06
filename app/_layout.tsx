@@ -22,6 +22,7 @@ import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold'
 // extension's sidebar logo — only this one weight is needed.
 import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold'
 import { ThemeProvider } from '@/theme/theme-provider'
+import { ToastProvider } from '@/components/ui/toast'
 import { AppSplashScreen } from '@/components/AppSplashScreen'
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow'
 import { PermissionsOnboarding } from '@/components/PermissionsOnboarding'
@@ -172,15 +173,17 @@ function RootLayoutNav() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="profiles/create" />
-          <Stack.Screen name="profiles/[id]" />
-          <Stack.Screen name="pricing" />
-          <Stack.Screen name="blocked" />
-        </Stack>
+        <ToastProvider>
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="profiles/create" />
+            <Stack.Screen name="profiles/[id]" />
+            <Stack.Screen name="pricing" />
+            <Stack.Screen name="blocked" />
+          </Stack>
+        </ToastProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   )

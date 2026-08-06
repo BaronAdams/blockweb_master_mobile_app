@@ -11,18 +11,24 @@ import { LimitBadge, EmptyState, AddRow } from '@/components/blocklist-ui'
 import { AccessibilityWarningBanner } from '@/components/AccessibilityWarningBanner'
 import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
+import { useToast } from '@/components/ui/toast'
 import { limitsFor, isPremium } from '@/utils/limits'
 
 export default function KeywordsBlockListScreen() {
   const { t } = useTranslation('blockLists')
   const background = useColor('background')
   const mutedForeground = useColor('mutedForeground')
+  const toast = useToast()
 
   const plan = useAppStore(s => s.plan)
   const limits = limitsFor(plan)
   const keywords = useAppStore(s => s.blockedKeywords)
   const addKeyword = useAppStore(s => s.addKeyword)
   const removeKeyword = useAppStore(s => s.removeKeyword)
+
+  const onRemove = (id: string) => {
+    if (!removeKeyword(id)) toast.warning(t('strictBlocked'))
+  }
 
   const [input, setInput] = useState('')
   const atLimit = !isPremium(plan) && keywords.length >= limits.maxKeywords
@@ -56,7 +62,7 @@ export default function KeywordsBlockListScreen() {
             <BlockListRow
               icon={<Text style={{ color: mutedForeground, fontFamily: 'monospace', fontSize: 13 }}>#</Text>}
               label={item.keyword}
-              onRemove={() => removeKeyword(item.id)}
+              onRemove={() => onRemove(item.id)}
             />
           )}
           ListEmptyComponent={<EmptyState icon={<Hash size={28} color={mutedForeground} />} label={t('noKeyword')} />}
