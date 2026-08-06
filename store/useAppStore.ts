@@ -6,21 +6,23 @@ import type { AppState, BlockedApp, BlockedWebsite, DailyAnalytics, LimiterProfi
 
 type AppStore = AppState & {
   addBlockedApp: (app: BlockedApp) => void
-  removeBlockedApp: (id: string) => void
+  /** Returns false (no-op) when Strict Mode blocks the removal — callers
+   *  use that to surface a toast instead of failing silently. */
+  removeBlockedApp: (id: string) => boolean
   toggleBlockedApp: (id: string) => void
   addKeyword: (keyword: string) => void
-  removeKeyword: (id: string) => void
+  removeKeyword: (id: string) => boolean
 
   addBlockedWebsite: (website: BlockedWebsite) => void
-  removeBlockedWebsite: (id: string) => void
+  removeBlockedWebsite: (id: string) => boolean
   toggleBlockedWebsite: (id: string) => void
 
   addWhitelistedSite: (domain: string) => void
-  removeWhitelistedSite: (id: string) => void
+  removeWhitelistedSite: (id: string) => boolean
 
   addProfile: (profile: LimiterProfile) => void
-  updateProfile: (id: string, updates: Partial<LimiterProfile>) => void
-  deleteProfile: (id: string) => void
+  updateProfile: (id: string, updates: Partial<LimiterProfile>) => boolean
+  deleteProfile: (id: string) => boolean
   activateProfile: (id: string) => void
 
   recordUsage: (packageName: string, minutes: number) => void
@@ -34,7 +36,7 @@ type AppStore = AppState & {
    *  (DailyAnalytics.hourlyUsage) — replaces per (day, hour). */
   mergeHourlyUsageStats: (stats: Record<string, Record<string, Record<string, number>>>) => void
 
-  activateStrictMode: (days: number) => void
+  activateStrictMode: (seconds: number) => void
   checkStrictExpiry: () => void
 
   setUser: (user: AppState['user']) => void
@@ -50,6 +52,7 @@ type AppStore = AppState & {
   completeOnboarding: () => void
   setAccessibilityEnabled: (enabled: boolean) => void
   setOverlayPermissionGranted: (granted: boolean) => void
+  setDeviceAdminActive: (active: boolean) => void
 
   /** 'device' follows the phone's language (falling back to English if
    *  unsupported); 'en' is an explicit user override. Applied immediately
@@ -68,7 +71,7 @@ export const useAppStore = create<AppStore>()(
       whitelistedSites: [],
       limiterProfiles: [],
       analytics: [],
-      strictMode: { isActive: false, durationDays: 1 },
+      strictMode: { isActive: false, durationSeconds: 86400 },
       plan: 'free',
       subscription: DEFAULT_SUBSCRIPTION,
       user: null,
@@ -77,6 +80,7 @@ export const useAppStore = create<AppStore>()(
       hasCompletedOnboarding: false,
       isAccessibilityEnabled: false,
       isOverlayPermissionGranted: false,
+      isDeviceAdminActive: false,
       languagePreference: 'device',
 
       addBlockedApp: (app) => set(s => ({
@@ -84,8 +88,9 @@ export const useAppStore = create<AppStore>()(
       })),
 
       removeBlockedApp: (id) => {
-        if (get().strictMode.isActive) return
+        if (get().strictMode.isActive) return false
         set(s => ({ blockedApps: s.blockedApps.filter(a => a.id !== id) }))
+        return true
       },
 
       toggleBlockedApp: (id) => set(s => ({
@@ -101,8 +106,9 @@ export const useAppStore = create<AppStore>()(
       })),
 
       removeKeyword: (id) => {
-        if (get().strictMode.isActive) return
+        if (get().strictMode.isActive) return false
         set(s => ({ blockedKeywords: s.blockedKeywords.filter(k => k.id !== id) }))
+        return true
       },
 
       addBlockedWebsite: (website) => set(s => ({
@@ -110,8 +116,9 @@ export const useAppStore = create<AppStore>()(
       })),
 
       removeBlockedWebsite: (id) => {
-        if (get().strictMode.isActive) return
+        if (get().strictMode.isActive) return false
         set(s => ({ blockedWebsites: s.blockedWebsites.filter(w => w.id !== id) }))
+        return true
       },
 
       toggleBlockedWebsite: (id) => set(s => ({
@@ -127,8 +134,9 @@ export const useAppStore = create<AppStore>()(
       })),
 
       removeWhitelistedSite: (id) => {
-        if (get().strictMode.isActive) return
+        if (get().strictMode.isActive) return false
         set(s => ({ whitelistedSites: s.whitelistedSites.filter(w => w.id !== id) }))
+        return true
       },
 
       addProfile: (profile) => set(s => ({
@@ -136,19 +144,21 @@ export const useAppStore = create<AppStore>()(
       })),
 
       updateProfile: (id, updates) => {
-        if (get().strictMode.isActive) return
+        if (get().strictMode.isActive) return false
         set(s => ({
           limiterProfiles: s.limiterProfiles.map(p =>
             p.id === id ? { ...p, ...updates } : p
           )
         }))
+        return true
       },
 
       deleteProfile: (id) => {
-        if (get().strictMode.isActive) return
+        if (get().strictMode.isActive) return false
         set(s => ({
           limiterProfiles: s.limiterProfiles.filter(p => p.id !== id)
         }))
+        return true
       },
 
       activateProfile: (id) => set(s => ({
@@ -233,14 +243,14 @@ export const useAppStore = create<AppStore>()(
         })
       },
 
-      activateStrictMode: (days) => {
+      activateStrictMode: (seconds) => {
         const now = Date.now()
         set({
           strictMode: {
             isActive: true,
             activatedAt: now,
-            expiresAt: now + days * 86400 * 1000,
-            durationDays: days,
+            expiresAt: now + seconds * 1000,
+            durationSeconds: seconds,
           }
         })
       },
@@ -248,7 +258,7 @@ export const useAppStore = create<AppStore>()(
       checkStrictExpiry: () => {
         const { strictMode } = get()
         if (strictMode.isActive && strictMode.expiresAt && Date.now() >= strictMode.expiresAt) {
-          set({ strictMode: { isActive: false, durationDays: 1 } })
+          set({ strictMode: { isActive: false, durationSeconds: 86400 } })
         }
       },
 
@@ -260,6 +270,7 @@ export const useAppStore = create<AppStore>()(
       completeOnboarding: () => set({ hasCompletedOnboarding: true }),
       setAccessibilityEnabled: (isAccessibilityEnabled) => set({ isAccessibilityEnabled }),
       setOverlayPermissionGranted: (isOverlayPermissionGranted) => set({ isOverlayPermissionGranted }),
+      setDeviceAdminActive: (isDeviceAdminActive) => set({ isDeviceAdminActive }),
 
       setLanguagePreference: (languagePreference) => {
         set({ languagePreference })

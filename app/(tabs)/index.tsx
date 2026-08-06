@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ScrollView } from 'react-native'
+import { Pressable, ScrollView } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { Ban, Globe, Hash, Hourglass } from 'lucide-react-native'
@@ -87,6 +87,7 @@ export default function AnalyticsScreen() {
     })
   }, [todayRecord])
   const hasHourlyData = hourlyBars.some(b => b.segments.length > 0)
+  const totalDailyMinutes = todayRecord?.totalMinutes ?? 0
 
   const onHourPress = (index: number) => {
     if (hourlyBars[index].segments.length === 0) return
@@ -131,8 +132,12 @@ export default function AnalyticsScreen() {
       <AppHeader />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
       >
+      {/* A tap anywhere that isn't a bar (or another touchable) resets the
+          hour filter — the bars' own SVG onPress claims the touch first,
+          so this only fires on genuine "empty space" taps. */}
+      <Pressable onPress={() => setSelectedHour(null)} style={{ gap: 20 }}>
         <View>
           <Text variant="title">{t('title')}</Text>
           <Text variant="caption" style={{ marginTop: 2 }}>{`${tc('today')} · ${todayLabel}`}</Text>
@@ -161,12 +166,17 @@ export default function AnalyticsScreen() {
           {!hasHourlyData ? (
             <EmptyChartState label={t('noData')} hint={t('trackingHint')} borderColor={border} />
           ) : (
-            <StackedBarChart
-              data={hourlyBars}
-              config={{ height: 150, labelEvery: 4 }}
-              selectedIndex={selectedHour}
-              onBarPress={(index) => onHourPress(index)}
-            />
+            <>
+              <Text style={{ fontSize: 22, fontWeight: '800', textAlign: 'center', marginBottom: 12 }}>
+                {formatMinutes(totalDailyMinutes)}
+              </Text>
+              <StackedBarChart
+                data={hourlyBars}
+                config={{ height: 150, labelEvery: 4 }}
+                selectedIndex={selectedHour}
+                onBarPress={(index) => onHourPress(index)}
+              />
+            </>
           )}
         </ChartContainer>
       </Animated.View>
@@ -281,6 +291,7 @@ export default function AnalyticsScreen() {
           </View>
         </Animated.View>
       )}
+      </Pressable>
       </ScrollView>
     </View>
   )

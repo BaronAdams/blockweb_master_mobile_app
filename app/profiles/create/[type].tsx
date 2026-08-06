@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Pressable, ScrollView } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { X } from 'lucide-react-native'
 import { View } from '@/components/ui/view'
 import { Text } from '@/components/ui/text'
 import { Input } from '@/components/ui/input'
@@ -11,9 +12,11 @@ import { SubScreenHeader } from '@/components/SubScreenHeader'
 import { SectionTitle } from '@/components/SectionTitle'
 import { AppIcon } from '@/components/AppIcon'
 import { Spinner } from '@/components/ui/spinner'
+import { AddRow, LimitBadge } from '@/components/blocklist-ui'
 import { useColor } from '@/hooks/useColor'
 import { useInstalledApps } from '@/hooks/useInstalledApps'
 import { useAppStore } from '@/store/useAppStore'
+import { limitsFor, isPremium } from '@/utils/limits'
 import { PROFILE_TYPE_META } from '@/lib/profileTypes'
 import type { DayOfWeek, LimiterType } from '@/types'
 
@@ -36,6 +39,7 @@ const LIMIT_KEY_BY_TYPE: Record<'daily' | 'hourly' | 'weekly', string> = {
 export default function CreateProfileFormScreen() {
   const { t } = useTranslation('profiles')
   const { t: tc } = useTranslation('common')
+  const { t: tb } = useTranslation('blockLists')
   const router = useRouter()
   const background = useColor('background')
   const card = useColor('card')
@@ -49,25 +53,57 @@ export default function CreateProfileFormScreen() {
 
   const { apps, loading: appsLoading } = useInstalledApps()
   const addProfile = useAppStore(s => s.addProfile)
+  const plan = useAppStore(s => s.plan)
+  const limits = limitsFor(plan)
+  const maxElements = limits.maxAppsPerProfile
 
   const [name, setName] = useState('')
   const [selectedApps, setSelectedApps] = useState<string[]>([])
+  const [websites, setWebsites] = useState<string[]>([])
+  const [keywords, setKeywords] = useState<string[]>([])
+  const [websiteInput, setWebsiteInput] = useState('')
+  const [keywordInput, setKeywordInput] = useState('')
   const [limitMinutes, setLimitMinutes] = useState('60')
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('17:30')
   const [days, setDays] = useState<DayOfWeek[]>(['mon', 'tue', 'wed', 'thu', 'fri'])
 
+  const totalElements = selectedApps.length + websites.length + keywords.length
+  const atLimit = !isPremium(plan) && totalElements >= maxElements
+
   const toggleApp = (packageName: string) => {
-    setSelectedApps(prev =>
-      prev.includes(packageName) ? prev.filter(p => p !== packageName) : [...prev, packageName]
-    )
+    setSelectedApps(prev => {
+      if (prev.includes(packageName)) return prev.filter(p => p !== packageName)
+      if (!isPremium(plan) && totalElements >= maxElements) return prev
+      return [...prev, packageName]
+    })
   }
+
+  const addWebsite = () => {
+    if (atLimit) return
+    const trimmed = websiteInput.trim().toLowerCase()
+    if (!trimmed || websites.includes(trimmed)) return
+    setWebsites(prev => [...prev, trimmed])
+    setWebsiteInput('')
+  }
+
+  const removeWebsite = (domain: string) => setWebsites(prev => prev.filter(w => w !== domain))
+
+  const addKeyword = () => {
+    if (atLimit) return
+    const trimmed = keywordInput.trim()
+    if (!trimmed || keywords.includes(trimmed)) return
+    setKeywords(prev => [...prev, trimmed])
+    setKeywordInput('')
+  }
+
+  const removeKeyword = (keyword: string) => setKeywords(prev => prev.filter(k => k !== keyword))
 
   const toggleDay = (day: DayOfWeek) => {
     setDays(prev => (prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]))
   }
 
-  const canSubmit = name.trim().length > 0 && selectedApps.length > 0
+  const canSubmit = name.trim().length > 0 && totalElements > 0
 
   const onSubmit = () => {
     if (!canSubmit) return
@@ -77,7 +113,8 @@ export default function CreateProfileFormScreen() {
       name: name.trim(),
       type,
       apps: selectedApps,
-      keywords: [],
+      websites,
+      keywords,
       isActive: true,
       createdAt: Date.now(),
       ...(type === 'daily' && {
@@ -128,7 +165,10 @@ export default function CreateProfileFormScreen() {
         </View>
 
         <View>
-          <SectionTitle style={{ marginBottom: 8 }}>Applications</SectionTitle>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <SectionTitle>{tb('applications')}</SectionTitle>
+            <LimitBadge count={totalElements} max={isPremium(plan) ? Infinity : maxElements} />
+          </View>
           {appsLoading ? (
             <View
               style={{
@@ -139,39 +179,83 @@ export default function CreateProfileFormScreen() {
               <Spinner variant="circle" label={tc('loading')} showLabel />
             </View>
           ) : (
-          <View style={{ backgroundColor: card, borderRadius: 14, borderWidth: 1, borderColor: border, overflow: 'hidden' }}>
-            {apps.map((app, i) => {
-              const selected = selectedApps.includes(app.packageName)
-              return (
-                <Pressable
-                  key={app.packageName}
-                  onPress={() => toggleApp(app.packageName)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 10,
-                    paddingVertical: 12,
-                    paddingHorizontal: 14,
-                    borderTopWidth: i === 0 ? 0 : 1,
-                    borderTopColor: border,
-                  }}
-                >
-                  <AppIcon appName={app.appName} icon={app.icon} size={28} />
-                  <Text style={{ flex: 1, fontSize: 14 }}>{app.appName}</Text>
-                  <View
+          // Bounded height so a long installed-apps list doesn't push the
+          // rest of the form (limit, days, submit) off screen — scrolls
+          // independently from the outer form ScrollView.
+          <View style={{ maxHeight: 260, backgroundColor: card, borderRadius: 14, borderWidth: 1, borderColor: border, overflow: 'hidden' }}>
+            <ScrollView nestedScrollEnabled>
+              {apps.map((app, i) => {
+                const selected = selectedApps.includes(app.packageName)
+                const disabled = !selected && atLimit
+                return (
+                  <Pressable
+                    key={app.packageName}
+                    onPress={() => toggleApp(app.packageName)}
+                    disabled={disabled}
                     style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 5,
-                      borderWidth: 1.5,
-                      borderColor: selected ? primary : border,
-                      backgroundColor: selected ? primary : 'transparent',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      borderTopWidth: i === 0 ? 0 : 1,
+                      borderTopColor: border,
+                      opacity: disabled ? 0.4 : 1,
                     }}
-                  />
-                </Pressable>
-              )
-            })}
+                  >
+                    <AppIcon appName={app.appName} icon={app.icon} size={28} />
+                    <Text style={{ flex: 1, fontSize: 14 }}>{app.appName}</Text>
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 5,
+                        borderWidth: 1.5,
+                        borderColor: selected ? primary : border,
+                        backgroundColor: selected ? primary : 'transparent',
+                      }}
+                    />
+                  </Pressable>
+                )
+              })}
+            </ScrollView>
           </View>
+          )}
+        </View>
+
+        <View>
+          <SectionTitle style={{ marginBottom: 8 }}>{tb('blockedDomains')}</SectionTitle>
+          <AddRow
+            value={websiteInput}
+            onChangeText={setWebsiteInput}
+            onAdd={addWebsite}
+            placeholder={atLimit ? t('limitReached') : tb('domainPlaceholder')}
+            disabled={atLimit}
+          />
+          {websites.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: -8, marginBottom: 8 }}>
+              {websites.map(domain => (
+                <Chip key={domain} label={domain} onRemove={() => removeWebsite(domain)} />
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View>
+          <SectionTitle style={{ marginBottom: 8 }}>{tb('blockedKeywords')}</SectionTitle>
+          <AddRow
+            value={keywordInput}
+            onChangeText={setKeywordInput}
+            onAdd={addKeyword}
+            placeholder={atLimit ? t('limitReached') : tb('keywordPlaceholder')}
+            disabled={atLimit}
+          />
+          {keywords.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: -8, marginBottom: 8 }}>
+              {keywords.map(keyword => (
+                <Chip key={keyword} label={keyword} onRemove={() => removeKeyword(keyword)} />
+              ))}
+            </View>
           )}
         </View>
 
@@ -233,6 +317,26 @@ export default function CreateProfileFormScreen() {
           {t('create')}
         </Button>
       </ScrollView>
+    </View>
+  )
+}
+
+function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  const card = useColor('card')
+  const border = useColor('border')
+  const mutedForeground = useColor('mutedForeground')
+  return (
+    <View
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: card, borderWidth: 1, borderColor: border,
+        borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6,
+      }}
+    >
+      <Text style={{ fontSize: 12 }}>{label}</Text>
+      <Pressable onPress={onRemove} hitSlop={6}>
+        <X size={12} color={mutedForeground} />
+      </Pressable>
     </View>
   )
 }

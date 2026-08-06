@@ -13,6 +13,7 @@ import { EntryIcon } from '@/components/EntryIcon'
 import { LimitBadge, EmptyState, AddRow } from '@/components/blocklist-ui'
 import { useColor } from '@/hooks/useColor'
 import { useAppStore } from '@/store/useAppStore'
+import { useToast } from '@/components/ui/toast'
 import { isPremium } from '@/utils/limits'
 
 export default function WhitelistBlockListScreen() {
@@ -22,11 +23,16 @@ export default function WhitelistBlockListScreen() {
   const background = useColor('background')
   const mutedForeground = useColor('mutedForeground')
   const primary = useColor('primary')
+  const toast = useToast()
 
   const plan = useAppStore(s => s.plan)
   const whitelist = useAppStore(s => s.whitelistedSites)
   const addWhitelistedSite = useAppStore(s => s.addWhitelistedSite)
   const removeWhitelistedSite = useAppStore(s => s.removeWhitelistedSite)
+
+  const onRemove = (id: string) => {
+    if (!removeWhitelistedSite(id)) toast.warning(t('strictBlocked'))
+  }
 
   const [input, setInput] = useState('')
 
@@ -70,7 +76,7 @@ export default function WhitelistBlockListScreen() {
                 <BlockListRow
                   icon={<EntryIcon name={item.domain} type="site" color={mutedForeground} size={24} />}
                   label={item.domain}
-                  onRemove={() => removeWhitelistedSite(item.id)}
+                  onRemove={() => onRemove(item.id)}
                 />
               )}
               ListEmptyComponent={<EmptyState icon={<Globe size={28} color={mutedForeground} />} label={t('noWhite')} />}

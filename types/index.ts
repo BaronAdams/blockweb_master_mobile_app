@@ -42,6 +42,7 @@ export type LimiterProfile = {
   name: string
   type: LimiterType
   apps: string[]
+  websites: string[]
   keywords: string[]
   dailyLimitMinutes?: number
   dailyUsedMinutes?: number
@@ -70,7 +71,7 @@ export type StrictModeState = {
   isActive: boolean
   activatedAt?: number
   expiresAt?: number
-  durationDays: number
+  durationSeconds: number
 }
 
 export type UserPlan = 'free' | 'monthly' | 'yearly' | 'lifetime'
@@ -107,6 +108,10 @@ export type AppState = {
   /** Whether SYSTEM_ALERT_WINDOW ("draw over other apps") is granted —
    *  required for the native block overlay to actually appear. */
   isOverlayPermissionGranted: boolean
+  /** Whether this app is registered as an active Android Device
+   *  Administrator — required for the Strict Mode uninstall-friction
+   *  restriction to actually apply (see modules/blocker/index.ts). */
+  isDeviceAdminActive: boolean
   /** 'device' (default) follows the phone's language; 'en' is an explicit
    *  user override — see store/useAppStore.ts's setLanguagePreference. */
   languagePreference: 'device' | 'en'

@@ -50,6 +50,14 @@ class BlockAccessibilityService : AccessibilityService() {
   // ---- App switch / app blocking / usage tracking ------------------------
 
   private fun handleWindowStateChanged(packageName: String) {
+    // Adding our own overlay window can itself trigger an accessibility
+    // event reporting our package as foreground — that's not a real app
+    // switch, just the overlay window being added/laid out. Without this
+    // guard, the block below would read it as "user opened BlockWeb
+    // Master" and call overlay.dismiss() on the overlay we just showed,
+    // producing a blink where the blocked app is briefly interactable.
+    if (packageName == this.packageName && overlay.isActive()) return
+
     if (packageName != lastPackageName) {
       val now = SystemClock.elapsedRealtime()
       recordElapsed(now)
@@ -64,7 +72,7 @@ class BlockAccessibilityService : AccessibilityService() {
       }
 
       if (isBlocked(packageName)) {
-        overlay.show(packageName, "Application bloquée", "")
+        overlay.show(packageName, "app", "")
         return
       } else {
         overlay.dismiss()
@@ -88,6 +96,10 @@ class BlockAccessibilityService : AccessibilityService() {
   private fun recordElapsed(now: Long) {
     val pkg = lastPackageName ?: return
     if (pkg == this.packageName) return
+    // Don't attribute dwell time to the launcher/systemui/keyboard — they
+    // foreground constantly as a side effect of navigation, not because
+    // the user opened them (see TrackablePackages for why).
+    if (!TrackablePackages.isTrackable(applicationContext, pkg)) return
     if (lastEventTimeMs <= 0L) return
     val elapsedMs = now - lastEventTimeMs
     // Guard against device sleep / service restarts producing bogus jumps.
@@ -149,14 +161,14 @@ class BlockAccessibilityService : AccessibilityService() {
     val host = BrowserUrlWatcher.extractHost(url)
     val blockedDomain = blockedDomains().firstOrNull { BrowserUrlWatcher.domainMatches(host, it) }
     if (blockedDomain != null) {
-      overlay.show(packageName, "Site bloqué", blockedDomain)
+      overlay.show(packageName, "site", blockedDomain)
       return
     }
 
     val lowerUrl = url.lowercase()
     val blockedKeyword = blockedKeywords().firstOrNull { lowerUrl.contains(it.lowercase()) }
     if (blockedKeyword != null) {
-      overlay.show(packageName, "Contenu bloqué", "Mot-clé : $blockedKeyword")
+      overlay.show(packageName, "keyword", blockedKeyword)
     }
   }
 
