@@ -107,9 +107,9 @@ export function BuildUpFlow({ onFinish }: { onFinish: (reclaimedHoursPerWeek: nu
           <QuestionStep
             title={t('q4Title')}
             options={[
-              { value: '7', label: t('q4Days', { count: 7 }) },
-              { value: '14', label: t('q4Days', { count: 14 }) },
-              { value: '30', label: t('q4Days', { count: 30 }) },
+              { value: '7', label: `🌱 ${t('q4Days', { count: 7 })}` },
+              { value: '14', label: `🌿 ${t('q4Days', { count: 14 })}` },
+              { value: '30', label: `🌳 ${t('q4Days', { count: 30 })}` },
             ]}
             selected={answers.days != null ? String(answers.days) : null}
             onSelect={(value) => selectAndAdvance({ days: Number(value) }, 'building')}
