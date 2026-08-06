@@ -10,6 +10,10 @@ import '../screens/tabs/blocklists/websites_screen.dart';
 import '../screens/tabs/blocklists/whitelist_screen.dart';
 import '../screens/tabs/account_screen.dart';
 import '../screens/tabs/strict_mode_screen.dart';
+import '../screens/profiles/choose_type_screen.dart';
+import '../screens/profiles/create_profile_screen.dart';
+import '../screens/profiles/profile_detail_screen.dart';
+import '../screens/profiles/profiles_list_screen.dart';
 import '../theme/app_theme.dart';
 
 /// Route map — a straight translation of the RN app's file-based routes
@@ -32,13 +36,16 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/onboarding/paywall', builder: (context, state) => const PlaceholderScreen(title: 'Paywall')),
     GoRoute(path: '/pricing', builder: (context, state) => const PlaceholderScreen(title: 'Pricing')),
     GoRoute(path: '/blocked', builder: (context, state) => const PlaceholderScreen(title: 'Blocked')),
-    GoRoute(
-      path: '/profiles/type',
-      builder: (context, state) => const PlaceholderScreen(title: 'Choose profile type'),
-    ),
+    // Outside the ShellRoute on purpose — like the RN app's Stack.Screen
+    // siblings of (tabs), these render full-screen without the bottom nav.
+    GoRoute(path: '/profiles/create', builder: (context, state) => const ChooseProfileTypeScreen()),
     GoRoute(
       path: '/profiles/create/:type',
-      builder: (context, state) => PlaceholderScreen(title: 'Create profile — ${state.pathParameters['type']}'),
+      builder: (context, state) => CreateProfileScreen(typeParam: state.pathParameters['type'] ?? 'daily'),
+    ),
+    GoRoute(
+      path: '/profiles/:id',
+      builder: (context, state) => ProfileDetailScreen(id: state.pathParameters['id']!),
     ),
 
     ShellRoute(
@@ -53,7 +60,7 @@ final GoRouter appRouter = GoRouter(
         GoRoute(path: '/blocklists/keywords', builder: (context, state) => const KeywordsScreen()),
         GoRoute(path: '/blocklists/websites', builder: (context, state) => const WebsitesScreen()),
         GoRoute(path: '/blocklists/whitelist', builder: (context, state) => const WhitelistScreen()),
-        GoRoute(path: '/profiles', builder: (context, state) => const PlaceholderScreen(title: 'Limiter Profiles')),
+        GoRoute(path: '/profiles', builder: (context, state) => const ProfilesListScreen()),
         GoRoute(path: '/strictmode', builder: (context, state) => const StrictModeScreen()),
         GoRoute(path: '/account', builder: (context, state) => const AccountScreen()),
       ],
