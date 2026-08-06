@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/placeholder_screen.dart';
+import '../screens/tabs/analytics_screen.dart';
 import '../screens/tabs/blocklists/apps_screen.dart';
 import '../screens/tabs/blocklists/blocklists_index_screen.dart';
 import '../screens/tabs/blocklists/keywords_screen.dart';
@@ -52,7 +53,7 @@ final GoRouter appRouter = GoRouter(
     ShellRoute(
       builder: (context, state, child) => _TabsShell(child: child),
       routes: [
-        GoRoute(path: '/', builder: (context, state) => const PlaceholderScreen(title: 'Analytics')),
+        GoRoute(path: '/', builder: (context, state) => const AnalyticsScreen()),
         GoRoute(path: '/blocklists', builder: (context, state) => const BlocklistsIndexScreen()),
         GoRoute(path: '/blocklists/apps', builder: (context, state) => const AppsScreen()),
         GoRoute(path: '/blocklists/keywords', builder: (context, state) => const KeywordsScreen()),
