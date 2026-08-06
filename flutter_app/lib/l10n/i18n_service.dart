@@ -15,6 +15,29 @@ class I18nService extends ChangeNotifier {
   ];
   static const String fallbackLanguage = 'en';
 
+  /// Autonyms, for the account screen's language picker only — every other
+  /// string comes from the locale files themselves. Port of
+  /// lib/i18n.ts's LANGUAGE_NAMES.
+  static const Map<String, String> languageNames = {
+    'ar': 'العربية',
+    'de': 'Deutsch',
+    'en': 'English',
+    'es': 'Español',
+    'fr': 'Français',
+    'hi': 'हिन्दी',
+    'it': 'Italiano',
+    'ja': '日本語',
+    'ko': '한국어',
+    'nl': 'Nederlands',
+    'pl': 'Polski',
+    'pt_PT': 'Português',
+    'ru': 'Русский',
+    'zh_CN': '中文',
+  };
+
+  /// The device's language, resolved once at boot — see resolveDeviceLanguage().
+  static final String deviceLanguage = resolveDeviceLanguage();
+
   final Map<String, Map<String, dynamic>> _resources = {};
   String _language = fallbackLanguage;
 
