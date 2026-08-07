@@ -49,7 +49,7 @@ jobs:
         # running `gradle wrapper` directly inside the project forces Gradle
         # to configure the project first (evaluate settings.gradle), which
         # applies the AGP plugin using the runner's preinstalled system
-        # Gradle (9.6.x) rather than the pinned 8.14.0 — and AGP 8.11.1 uses
+        # Gradle (9.6.x) rather than the pinned 8.14 — and AGP 8.11.1 uses
         # internal Gradle APIs removed in Gradle 9.6.0, so that config step
         # crashes before the wrapper is even written. An empty dir has no
         # build files to evaluate, so the wrapper task runs standalone; the
@@ -63,7 +63,7 @@ jobs:
           # file is enough to satisfy that check without pulling in any
           # plugins (unlike flutter_app/android's real settings.gradle).
           touch settings.gradle
-          gradle wrapper --gradle-version 8.14.0 --distribution-type all
+          gradle wrapper --gradle-version 8.14 --distribution-type all
           cp -r gradle "$GITHUB_WORKSPACE/flutter_app/android/"
           cp gradlew gradlew.bat "$GITHUB_WORKSPACE/flutter_app/android/"
           chmod +x "$GITHUB_WORKSPACE/flutter_app/android/gradlew"

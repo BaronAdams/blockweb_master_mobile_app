@@ -26,10 +26,12 @@ plugins {
     // "will soon be dropped" warning on the same run named 8.11.1 as the
     // next hard floor, so jumping straight there instead of the bare
     // 8.9.1 minimum to avoid a third round over the same issue. Gradle
-    // bumped to 8.14.0 to match (see
-    // android/gradle/wrapper/gradle-wrapper.properties), which is also
-    // what Flutter's warning named as its own minimum, and is comfortably
-    // within AGP 8.11.1's supported Gradle range.
+    // bumped to 8.14 to match (see
+    // android/gradle/wrapper/gradle-wrapper.properties — note: Gradle's
+    // own release naming has no trailing ".0" on a minor series' first
+    // release, so it's "8.14" not "8.14.0"), which is also what Flutter's
+    // warning named as its own minimum, and is comfortably within AGP
+    // 8.11.1's supported Gradle range.
     id "com.android.application" version "8.11.1" apply false
     // Declared 1.9.24 previously but the CI log showed Kotlin 2.0.0 was
     // actually applied (flutter-gradle-plugin overrides it) — declaring
