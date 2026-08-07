@@ -44,8 +44,24 @@ jobs:
         # android/.gitignore) — regenerated here from the pinned version in
         # android/gradle/wrapper/gradle-wrapper.properties using the Gradle
         # preinstalled on GitHub-hosted ubuntu-latest runners.
-        working-directory: flutter_app/android
-        run: gradle wrapper --gradle-version 8.14.0 --distribution-type all
+        #
+        # Generated in an empty scratch dir, NOT in flutter_app/android:
+        # running `gradle wrapper` directly inside the project forces Gradle
+        # to configure the project first (evaluate settings.gradle), which
+        # applies the AGP plugin using the runner's preinstalled system
+        # Gradle (9.6.x) rather than the pinned 8.14.0 — and AGP 8.11.1 uses
+        # internal Gradle APIs removed in Gradle 9.6.0, so that config step
+        # crashes before the wrapper is even written. An empty dir has no
+        # build files to evaluate, so the wrapper task runs standalone; the
+        # resulting gradlew/gradle-wrapper.jar are project-agnostic and just
+        # get copied in.
+        run: |
+          mkdir -p /tmp/gradle-wrapper-gen
+          cd /tmp/gradle-wrapper-gen
+          gradle wrapper --gradle-version 8.14.0 --distribution-type all
+          cp -r gradle "$GITHUB_WORKSPACE/flutter_app/android/"
+          cp gradlew gradlew.bat "$GITHUB_WORKSPACE/flutter_app/android/"
+          chmod +x "$GITHUB_WORKSPACE/flutter_app/android/gradlew"
 
       - name: flutter build apk
         run: flutter build apk --release
