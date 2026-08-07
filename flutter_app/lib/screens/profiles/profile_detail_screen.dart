@@ -87,7 +87,8 @@ class ProfileDetailScreen extends ConsumerWidget {
     };
     final progressValue = limitMinutes > 0 ? (usedMinutes / limitMinutes * 100).clamp(0, 100).toDouble() : 0.0;
     final hasBudget = profile.type != LimiterType.interval;
-    final remainingMinutes = (limitMinutes - usedMinutes).clamp(0, double.infinity);
+    final remainingMinutesRaw = limitMinutes - usedMinutes;
+    final remainingMinutes = remainingMinutesRaw < 0 ? 0.0 : remainingMinutesRaw;
     final strictModeActive = store.strictMode.isActive;
 
     final installedApps = ref.watch(installedAppsProvider).value ?? const [];

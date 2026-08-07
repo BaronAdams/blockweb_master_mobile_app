@@ -47,7 +47,9 @@ class StackedBarChart extends StatelessWidget {
           onTapUp: onBarTap == null
               ? null
               : (details) {
-                  final index = (details.localPosition.dx / width * data.length).floor().clamp(0, data.length - 1);
+                  // num.clamp() always returns num, even called on an int —
+                  // .toInt() is load-bearing, onBarTap needs a real int.
+                  final index = (details.localPosition.dx / width * data.length).floor().clamp(0, data.length - 1).toInt();
                   onBarTap!(index);
                 },
           child: CustomPaint(

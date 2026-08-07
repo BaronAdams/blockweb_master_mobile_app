@@ -50,7 +50,9 @@ class _DoughnutPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.butt;
-      final drawSweep = (sweep - gapRadians).clamp(0.0, sweep);
+      // num.clamp() always returns num, even on a double receiver —
+      // .toDouble() is load-bearing, drawArc's sweepAngle is strictly double.
+      final drawSweep = (sweep - gapRadians).clamp(0.0, sweep).toDouble();
       canvas.drawArc(rect, startAngle + gapRadians / 2, drawSweep, false, paint);
       startAngle += sweep;
     }
