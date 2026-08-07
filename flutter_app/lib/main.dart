@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'l10n/i18n_service.dart';
+import 'native/app_monitor.dart';
 import 'native/supabase_client.dart';
 import 'router/app_router.dart';
 import 'state/app_settings.dart';
@@ -27,6 +28,11 @@ Future<void> main() async {
   // sessionLoadedProvider until this resolves, so the first frame doesn't
   // need to wait on it.
   SessionSyncService.init(container);
+  // Bridges blocklists/analytics to the native blocking engine — see
+  // native/app_monitor.dart's doc comment for why this is load-bearing
+  // (without it, native never learns the current blocklists and Dart never
+  // pulls real usage stats back).
+  AppMonitorService.init(container);
 
   runApp(
     UncontrolledProviderScope(

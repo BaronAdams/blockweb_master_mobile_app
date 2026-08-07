@@ -9,6 +9,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -127,11 +128,24 @@ class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHand
 
   /** Opens a system Settings screen by action string (e.g.
    *  Settings.ACTION_ACCESSIBILITY_SETTINGS) — used by the "Enable" button
-   *  on AccessibilityWarningBanner (Dart side). */
+   *  on AccessibilityWarningBanner and PermissionsScreen (Dart side). */
   private fun openSettings(action: String) {
     if (action.isEmpty()) return
     try {
       val intent = Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      when (action) {
+        // Without EXTRA_APP_PACKAGE, Android has no way to know which app's
+        // notification settings to show — on many OEMs (Samsung in
+        // particular) this surfaces as a bare "this app isn't installed"
+        // error instead of silently failing, which is what was being
+        // reported as a bug rather than a missing-permission no-op.
+        Settings.ACTION_APP_NOTIFICATION_SETTINGS ->
+          intent.putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        // Jumps straight to this app's own toggle instead of the generic
+        // "draw over other apps" app list.
+        Settings.ACTION_MANAGE_OVERLAY_PERMISSION ->
+          intent.data = Uri.parse("package:${context.packageName}")
+      }
       context.startActivity(intent)
     } catch (e: Exception) {
       // No Settings screen able to handle this action on some OEM builds.

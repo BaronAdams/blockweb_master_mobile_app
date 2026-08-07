@@ -15,7 +15,12 @@ class SplashScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
       body: Center(
-        child: Icon(Icons.shield_outlined, size: 96, color: isDark ? Colors.white : Colors.black),
+        child: Image.asset(
+          'assets/images/shield_foreground.png',
+          width: 140,
+          height: 140,
+          fit: BoxFit.contain,
+        ),
       ),
     );
   }

@@ -15,7 +15,10 @@ class StatCard extends StatelessWidget {
     final colors = AppTheme.colorsOf(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      // Extra bottom padding vs. the other 3 sides — with the tight
+      // fixed-aspect-ratio grid cell (see analytics_screen.dart), the value
+      // text was sitting flush against the card's bottom edge.
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
       decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
