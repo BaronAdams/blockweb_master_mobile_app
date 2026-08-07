@@ -3,11 +3,12 @@ name: Flutter build
 # Builds the Flutter port (flutter_app/) — separate from the RN/Expo app
 # at the repo root, which keeps its own EAS build flow untouched.
 #
-# Runs on every push to main/master, regardless of which files changed —
-# per explicit request, this is the CI signal for "is the Flutter port
-# still buildable," so it shouldn't stay silent just because a given
-# commit didn't touch flutter_app/. Pull requests keep the narrower
-# path filter, so PRs unrelated to the Flutter port don't wait on it.
+# Runs ONLY on push to main, regardless of which files changed — per
+# explicit request, this is the CI signal for "is the Flutter port still
+# buildable on main," so it shouldn't stay silent just because a given
+# commit didn't touch flutter_app/, and shouldn't fire on other branches
+# or pull requests. workflow_dispatch stays as a manual on-demand escape
+# hatch (not an automatic trigger competing with "push to main").
 #
 # NOT YET VERIFIED END TO END: this workflow, and the flutter_app/android
 # project it builds, were written without access to a Flutter/Gradle/Xcode
@@ -17,11 +18,7 @@ name: Flutter build
 
 on:
   push:
-    branches: [main, master]
-  pull_request:
-    paths:
-      - 'flutter_app/**'
-      - '.github/workflows/flutter-build.yml'
+    branches: [main]
   workflow_dispatch: {}
 
 defaults:
@@ -48,7 +45,7 @@ jobs:
         # android/gradle/wrapper/gradle-wrapper.properties using the Gradle
         # preinstalled on GitHub-hosted ubuntu-latest runners.
         working-directory: flutter_app/android
-        run: gradle wrapper --gradle-version 8.7 --distribution-type all
+        run: gradle wrapper --gradle-version 8.14.0 --distribution-type all
 
       - name: flutter build apk
         run: flutter build apk --release

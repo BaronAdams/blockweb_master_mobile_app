@@ -13,7 +13,10 @@ class AppProgressBar extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(height / 2),
       child: LinearProgressIndicator(
-        value: (value.clamp(0, 100)) / 100,
+        // num.clamp() always returns num, even on a double receiver — the
+        // .toDouble() is load-bearing, not decorative (LinearProgressIndicator
+        // .value is strictly double?).
+        value: value.clamp(0, 100).toDouble() / 100,
         minHeight: height,
         backgroundColor: colors.border,
         valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
