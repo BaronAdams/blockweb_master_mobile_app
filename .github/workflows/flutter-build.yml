@@ -58,6 +58,11 @@ jobs:
         run: |
           mkdir -p /tmp/gradle-wrapper-gen
           cd /tmp/gradle-wrapper-gen
+          # Gradle 9.x refuses to run any task, even `wrapper`, unless the
+          # directory already looks like a build root — an empty settings
+          # file is enough to satisfy that check without pulling in any
+          # plugins (unlike flutter_app/android's real settings.gradle).
+          touch settings.gradle
           gradle wrapper --gradle-version 8.14.0 --distribution-type all
           cp -r gradle "$GITHUB_WORKSPACE/flutter_app/android/"
           cp gradlew gradlew.bat "$GITHUB_WORKSPACE/flutter_app/android/"
