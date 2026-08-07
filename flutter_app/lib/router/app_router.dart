@@ -166,13 +166,35 @@ class _TabsShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: colors.background,
       body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _indexFor(location),
-        backgroundColor: colors.card,
-        onDestinationSelected: (i) => context.go(_tabs[i].path),
-        destinations: [
-          for (final tab in _tabs) NavigationDestination(icon: Icon(tab.icon), label: tab.label),
-        ],
+      // Matches app/(tabs)/_layout.tsx's tabBarActiveTintColor (primary) /
+      // tabBarInactiveTintColor (mutedForeground) — NavigationBar's default
+      // Material3 theme colors selected/unselected icons too similarly, so
+      // both icon and label are colored explicitly per destination instead
+      // of relying on the ambient theme.
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (states) => TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: states.contains(WidgetState.selected) ? colors.primary : colors.mutedForeground,
+            ),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _indexFor(location),
+          backgroundColor: colors.card,
+          indicatorColor: colors.primary.withOpacity(0.15),
+          onDestinationSelected: (i) => context.go(_tabs[i].path),
+          destinations: [
+            for (final tab in _tabs)
+              NavigationDestination(
+                icon: Icon(tab.icon, color: colors.mutedForeground),
+                selectedIcon: Icon(tab.icon, color: colors.primary),
+                label: tab.label,
+              ),
+          ],
+        ),
       ),
     );
   }

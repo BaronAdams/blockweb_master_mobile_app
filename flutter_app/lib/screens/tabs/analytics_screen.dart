@@ -163,7 +163,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 1.4,
+                    // Was 1.4 — too short for a 2-line label + value at the
+                    // new bottom padding, leaving no breathing room below
+                    // the value text (looked like padding-bottom: 0).
+                    childAspectRatio: 1.1,
                     children: [
                       StatCard(label: 'Apps bloquées', value: '${store.blockedApps.length}', icon: Icons.block_rounded, color: const Color(0xFFF43F5E)),
                       StatCard(label: 'Sites bloqués', value: '${store.blockedWebsites.length}', icon: Icons.public_rounded, color: const Color(0xFF8B5CF6)),

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the RN app's adaptiveIcon.backgroundColor (app.json) and
+         android-icon-background.png, which is a plain white fill. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>

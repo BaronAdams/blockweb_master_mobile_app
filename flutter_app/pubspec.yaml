@@ -16,6 +16,11 @@ dependencies:
   shared_preferences: ^2.2.3       # equivalent of the RN app's AsyncStorage-backed Zustand persist
   intl: ^0.19.0
   supabase_flutter: ^2.5.6         # same backend as lib/supabase.ts in the RN app
+  # Montserrat wordmark (AppLogo/AppHeader), matching the RN app's
+  # @expo-google-fonts/montserrat. Unlike the RN package (a build-time npm
+  # dependency), google_fonts fetches+caches the font file over network on
+  # first use — the closest equivalent without vendoring a .ttf by hand.
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -25,6 +30,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/images/shield_foreground.png
     - assets/locales/ar/messages.json
     - assets/locales/de/messages.json
     - assets/locales/en/messages.json

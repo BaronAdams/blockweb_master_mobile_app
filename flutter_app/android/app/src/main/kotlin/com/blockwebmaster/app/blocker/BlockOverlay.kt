@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -18,6 +19,7 @@ import android.view.WindowManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.blockwebmaster.app.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -50,6 +52,11 @@ class BlockOverlay(private val service: AccessibilityService) {
   private var shownForPackage: String? = null
   private var lastReasonKey: String? = null
   private var lastValue: String? = null
+
+  /** Cached header logo (res/drawable-nodpi/logo_shield.png, same gold
+   *  shield mark as AppHeader/app icon) — decoded once since it never
+   *  changes, avoiding a bitmap decode + base64 encode on every show(). */
+  private val logoDataUri: String? by lazy { resolveLogoDataUri() }
 
   fun canShow(): Boolean = Settings.canDrawOverlays(service)
 
@@ -196,6 +203,18 @@ class BlockOverlay(private val service: AccessibilityService) {
     return "data:image/png;base64,$base64"
   }
 
+  private fun resolveLogoDataUri(): String? {
+    val bitmap = try {
+      BitmapFactory.decodeResource(service.resources, R.drawable.logo_shield)
+    } catch (e: Exception) {
+      null
+    } ?: return null
+    val stream = ByteArrayOutputStream()
+    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+    val base64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+    return "data:image/png;base64,$base64"
+  }
+
   private fun drawableToBitmap(drawable: Drawable): Bitmap {
     if (drawable is BitmapDrawable && drawable.bitmap != null) return drawable.bitmap
     val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 96
@@ -289,6 +308,7 @@ class BlockOverlay(private val service: AccessibilityService) {
     val quote = pickQuote(bundle.optJSONArray("quotes"))
 
     val (iconColor, glowColor) = colorsFor(reasonKey)
+    val logoImgHtml = if (logoDataUri != null) """<img src="$logoDataUri" />""" else ""
     val appIconDataUri = if (reasonKey == "app") resolveAppIconDataUri(packageName) else null
     val floatingIconHtml = if (appIconDataUri != null) {
       """<img src="$appIconDataUri" style="width:48px;height:48px;border-radius:12px;object-fit:cover;" />"""
@@ -328,7 +348,7 @@ class BlockOverlay(private val service: AccessibilityService) {
     justify-content: center; align-items: center; gap: 10px; opacity: 0.85; }
   .logo-box { width: 34px; height: 34px; border-radius: 9px; background: rgba(245,158,11,0.1);
     border: 1px solid rgba(245,158,11,0.25); display: flex; align-items: center; justify-content: center; }
-  .logo-dot { width: 15px; height: 15px; border-radius: 4px; background: #f59e0b; }
+  .logo-box img { width: 20px; height: 20px; object-fit: contain; }
   .logo-text { font-size: 14px; font-weight: 500; color: #fff; }
   main { position: relative; z-index: 10; width: 100%; max-width: 460px; margin-top: 60px;
     display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -379,7 +399,7 @@ class BlockOverlay(private val service: AccessibilityService) {
   <div class="grid-bg"></div>
   <div class="page">
     <div class="logo-row">
-      <div class="logo-box"><div class="logo-dot"></div></div>
+      <div class="logo-box">$logoImgHtml</div>
       <span class="logo-text">BlockWeb Master</span>
     </div>
     <main>
