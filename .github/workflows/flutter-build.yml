@@ -69,7 +69,18 @@ jobs:
           chmod +x "$GITHUB_WORKSPACE/flutter_app/android/gradlew"
 
       - name: flutter build apk
-        run: flutter build apk --release
+        # SUPABASE_URL / SUPABASE_ANON_KEY come from this repo's Actions
+        # secrets (Settings > Secrets and variables > Actions) — Dart has
+        # no process.env, so native/supabase_client.dart reads them via
+        # String.fromEnvironment, which only sees values passed as
+        # --dart-define at build time. Missing/empty secrets aren't a
+        # build failure: supabase_client.dart treats that the same as
+        # local dev without them (auth screens surface Supabase's own
+        # error instead of crashing startup).
+        run: |
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -110,7 +121,14 @@ jobs:
         # Once signing secrets exist, add an `xcodebuild -exportArchive`
         # step here with a real export options plist to produce a signed
         # .ipa for TestFlight/ad-hoc distribution.
-        run: flutter build ios --release --no-codesign
+        #
+        # Same SUPABASE_URL / SUPABASE_ANON_KEY secrets as the Android job
+        # — see that job's flutter build apk step for why --dart-define is
+        # the only way Dart code can see these.
+        run: |
+          flutter build ios --release --no-codesign \
+            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
       - name: Zip unsigned .app
         run: |
