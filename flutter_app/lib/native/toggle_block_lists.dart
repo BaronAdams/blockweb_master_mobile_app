@@ -1,12 +1,14 @@
-/// Curated domain/keyword lists pushed to native only while their
+/// Curated domain/keyword/package lists pushed to native only while their
 /// corresponding toggle in BlocklistsIndexScreen is on. Ported from the
-/// chrome extension's lib/constants.ts PREDEFINED_ADULT_DOMAINS — the
-/// extension additionally does live page-content analysis
-/// (content/adultContentScript.ts) to catch adult sites NOT in this list,
-/// which isn't something this app can replicate: it only ever sees the
-/// browser's address bar text via the accessibility tree (BrowserUrlWatcher.kt),
-/// never the page's actual DOM/content. So adult blocking here is
-/// domain-list-only — a real but strictly narrower net than the extension's.
+/// chrome extension's lib/constants.ts PREDEFINED_ADULT_DOMAINS.
+///
+/// Adult blocking has two layers natively: this curated domain list
+/// (exact match, see BlockAccessibilityService.kt), plus a body-text
+/// content-analysis fallback (AdultContentDetector.kt, ported from the
+/// extension's content/adultContentScript.ts) for domains NOT in this
+/// list. The content fallback only sees text actually rendered on screen
+/// via the accessibility tree — no DOM, no <meta>/og: tags, no <title> —
+/// so it's real but narrower than the extension's full-DOM analysis.
 const List<String> adultDomains = [
   'xvideos.com', 'hotebonytube.com', 'mat6tube.com', 'playvids.com', 'wow.xxx',
   'xhand.net', 'thumbzilla.com', 'ebonygalore.com', 'analdin.com', 'xozilla.com',
@@ -22,17 +24,34 @@ const List<String> adultDomains = [
 /// URL substrings for short-form video feeds — matched against the full
 /// address-bar text the same way user-added blocked keywords already are
 /// (BlockAccessibilityService.kt's checkBrowserUrl does a plain substring
-/// search), so no native changes were needed to support this toggle. Only
-/// covers these platforms used THROUGH A BROWSER — TikTok/Instagram/
-/// Facebook/YouTube used as native Android apps aren't reachable this way
-/// (no browser address bar to read); blocking those natively would need to
-/// fully block the app instead, which is a different, coarser tool
-/// (Block Lists > Applications).
+/// search), so no native changes were needed to support this toggle when
+/// these platforms are used THROUGH A BROWSER.
 const List<String> reelsShortsUrlPatterns = [
   'youtube.com/shorts',
   'm.youtube.com/shorts',
   'instagram.com/reels',
   'instagram.com/reel/',
   'facebook.com/reel',
-  'tiktok.com',
+];
+
+/// TikTok's entire interface is short-form video, so there's no
+/// "shorts vs. not shorts" distinction to detect within the app — blocking
+/// the whole app (folded into the flat blocked-packages set, same as
+/// Block Lists > Applications) achieves exactly the same result as
+/// blocking "TikTok's shorts feed" would. International + some-region
+/// package names.
+const List<String> tiktokPackageNames = [
+  'com.zhiliaoapp.musically',
+  'com.ss.android.ugc.trill',
+];
+
+/// Instagram/Facebook/YouTube native-app package names the EXPERIMENTAL
+/// in-app Reels/Shorts detector (ShortsFeedDetector.kt) applies to when
+/// they're used as installed apps rather than through a browser — see
+/// that file's doc comment for why this is best-effort/unverified.
+const List<String> reelsShortsDetectablePackages = [
+  'com.instagram.android',
+  'com.facebook.katana',
+  'com.facebook.lite',
+  'com.google.android.youtube',
 ];

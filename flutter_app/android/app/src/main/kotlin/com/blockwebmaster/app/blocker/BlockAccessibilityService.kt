@@ -33,6 +33,12 @@ class BlockAccessibilityService : AccessibilityService() {
   private var lastEventTimeMs: Long = 0L
   private var lastUrlCheckMs: Long = 0L
   private var lastCheckedUrl: String? = null
+  private var lastContentCheckMs: Long = 0L
+  private var lastShortsCheckMs: Long = 0L
+  // Package we ourselves showed the "shorts" overlay for — lets the shorts
+  // check dismiss its own overlay (user left the Reels/Shorts tab) without
+  // interfering with the separate flat-app-block show/dismiss flow below.
+  private var shortsOverlayActiveFor: String? = null
 
   // TYPE_WINDOW_STATE_CHANGED doesn't fire just because the screen turns
   // off — the foreground app doesn't change, the display just goes dark —
@@ -124,6 +130,7 @@ class BlockAccessibilityService : AccessibilityService() {
       lastPackageName = packageName
       lastEventTimeMs = now
       lastCheckedUrl = null
+      shortsOverlayActiveFor = null
 
       if (packageName == this.packageName) {
         // The user opened BlockWeb Master itself — nothing to block/track.
@@ -142,6 +149,10 @@ class BlockAccessibilityService : AccessibilityService() {
     if (packageName != this.packageName && BrowserUrlWatcher.isKnownBrowser(packageName)) {
       checkBrowserUrl(packageName, force = true)
     }
+
+    if (packageName != this.packageName && reelsShortsBlocked() && ShortsFeedDetector.supports(packageName)) {
+      checkShortsFeed(packageName, force = true)
+    }
   }
 
   private fun handleContentChanged(packageName: String) {
@@ -149,8 +160,38 @@ class BlockAccessibilityService : AccessibilityService() {
     // AccessibilityEvent.packageName can lag behind the real foreground app.
     if (packageName != lastPackageName) return
     if (packageName == this.packageName) return
-    if (!BrowserUrlWatcher.isKnownBrowser(packageName)) return
-    checkBrowserUrl(packageName, force = false)
+
+    if (BrowserUrlWatcher.isKnownBrowser(packageName)) {
+      checkBrowserUrl(packageName, force = false)
+    }
+    if (reelsShortsBlocked() && ShortsFeedDetector.supports(packageName)) {
+      checkShortsFeed(packageName, force = false)
+    }
+  }
+
+  // ---- Reels/Shorts (experimental, see ShortsFeedDetector) --------------
+
+  private fun checkShortsFeed(packageName: String, force: Boolean) {
+    val now = SystemClock.elapsedRealtime()
+    if (!force && now - lastShortsCheckMs < SHORTS_CHECK_THROTTLE_MS) return
+    lastShortsCheckMs = now
+
+    val root = rootInActiveWindow ?: return
+    val showing = try {
+      ShortsFeedDetector.isShowingShortsFeed(root)
+    } catch (e: Exception) {
+      false
+    } finally {
+      try { root.recycle() } catch (e: Exception) {}
+    }
+
+    if (showing) {
+      shortsOverlayActiveFor = packageName
+      overlay.show(packageName, "shorts", "")
+    } else if (shortsOverlayActiveFor == packageName) {
+      shortsOverlayActiveFor = null
+      overlay.dismiss()
+    }
   }
 
   private fun recordElapsed(now: Long) {
@@ -214,42 +255,67 @@ class BlockAccessibilityService : AccessibilityService() {
     lastUrlCheckMs = now
 
     val root = rootInActiveWindow ?: return
-    val url = try {
-      BrowserUrlWatcher.extractUrl(root, packageName)
-    } catch (e: Exception) {
-      null
+    try {
+      val url = try {
+        BrowserUrlWatcher.extractUrl(root, packageName)
+      } catch (e: Exception) {
+        null
+      }
+      if (url.isNullOrBlank() || url == lastCheckedUrl) return
+      lastCheckedUrl = url
+
+      val host = BrowserUrlWatcher.extractHost(url)
+
+      // Checked before the generic domain list so a match gets the "adult"
+      // overlay copy/badge instead of the generic "site" one.
+      val adultDomain = adultDomains().firstOrNull { BrowserUrlWatcher.domainMatches(host, it) }
+      if (adultDomain != null) {
+        overlay.show(packageName, "adult", adultDomain)
+        return
+      }
+
+      val blockedDomain = blockedDomains().firstOrNull { BrowserUrlWatcher.domainMatches(host, it) }
+      if (blockedDomain != null) {
+        overlay.show(packageName, "site", blockedDomain)
+        return
+      }
+
+      val lowerUrl = url.lowercase()
+      val blockedKeyword = blockedKeywords().firstOrNull { lowerUrl.contains(it.lowercase()) }
+      if (blockedKeyword != null) {
+        overlay.show(packageName, "keyword", blockedKeyword)
+        return
+      }
+
+      // Content-based fallback, for adult domains NOT in the curated list
+      // — reuses this same `root` (still valid, not yet recycled) rather
+      // than fetching it again. Only for a domain that isn't in the safe
+      // allowlist, and throttled separately/more heavily than the URL
+      // check since walking the tree for text is a lot more work than
+      // just finding the address bar.
+      if (adultContentBlocked() && !AdultContentDetector.isSafeDomain(host) &&
+        now - lastContentCheckMs >= CONTENT_CHECK_THROTTLE_MS
+      ) {
+        lastContentCheckMs = now
+        val bodyText = try {
+          AdultContentDetector.extractVisibleText(root)
+        } catch (e: Exception) {
+          ""
+        }
+        if (AdultContentDetector.looksAdultByContent(bodyText)) {
+          overlay.show(packageName, "adult", host)
+        }
+      }
     } finally {
       try { root.recycle() } catch (e: Exception) {}
-    }
-    if (url.isNullOrBlank() || url == lastCheckedUrl) return
-    lastCheckedUrl = url
-
-    val host = BrowserUrlWatcher.extractHost(url)
-
-    // Checked before the generic domain list so a match gets the "adult"
-    // overlay copy/badge instead of the generic "site" one.
-    val adultDomain = adultDomains().firstOrNull { BrowserUrlWatcher.domainMatches(host, it) }
-    if (adultDomain != null) {
-      overlay.show(packageName, "adult", adultDomain)
-      return
-    }
-
-    val blockedDomain = blockedDomains().firstOrNull { BrowserUrlWatcher.domainMatches(host, it) }
-    if (blockedDomain != null) {
-      overlay.show(packageName, "site", blockedDomain)
-      return
-    }
-
-    val lowerUrl = url.lowercase()
-    val blockedKeyword = blockedKeywords().firstOrNull { lowerUrl.contains(it.lowercase()) }
-    if (blockedKeyword != null) {
-      overlay.show(packageName, "keyword", blockedKeyword)
     }
   }
 
   private fun blockedDomains(): Set<String> = prefs().getStringSet(BLOCKED_DOMAINS_KEY, emptySet()) ?: emptySet()
   private fun blockedKeywords(): Set<String> = prefs().getStringSet(BLOCKED_KEYWORDS_KEY, emptySet()) ?: emptySet()
   private fun adultDomains(): Set<String> = prefs().getStringSet(ADULT_DOMAINS_KEY, emptySet()) ?: emptySet()
+  private fun adultContentBlocked(): Boolean = prefs().getBoolean(ADULT_CONTENT_BLOCKED_KEY, false)
+  private fun reelsShortsBlocked(): Boolean = prefs().getBoolean(REELS_SHORTS_BLOCKED_KEY, false)
 
   private fun prefs(): SharedPreferences =
     applicationContext.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -260,11 +326,15 @@ class BlockAccessibilityService : AccessibilityService() {
     const val BLOCKED_DOMAINS_KEY = "blocked_domains"
     const val BLOCKED_KEYWORDS_KEY = "blocked_keywords"
     const val ADULT_DOMAINS_KEY = "adult_domains"
+    const val ADULT_CONTENT_BLOCKED_KEY = "adult_content_blocked"
+    const val REELS_SHORTS_BLOCKED_KEY = "reels_shorts_blocked"
     const val STATS_PREFIX = "usage:"
     const val DAYS_KEY = "usage_days"
     const val HOURLY_PREFIX = "usage_hourly:"
     private const val MAX_SESSION_MS = 20 * 60 * 1000L
     private const val URL_CHECK_THROTTLE_MS = 800L
+    private const val CONTENT_CHECK_THROTTLE_MS = 2500L
+    private const val SHORTS_CHECK_THROTTLE_MS = 1000L
     private const val HEARTBEAT_INTERVAL_MS = 60 * 1000L
 
     fun dateKey(date: Date): String =

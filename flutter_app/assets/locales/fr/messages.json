@@ -229,7 +229,11 @@
     "quote_9_desc": "Le manque de direction, et non le manque de temps, est le problème.",
     "quote_9_author": "Zig Ziglar",
     "quote_10_desc": "Faites un pas à la fois, mais faites-le maintenant.",
-    "quote_10_author": ""
+    "quote_10_author": "",
+    "shortsBlockedTitle": "Vidéos courtes bloquées",
+    "shortsDesc": "Les flux Reels/Shorts sont bloqués pour t'éviter le scroll infini.",
+    "shortsBadge": "Reels/Shorts",
+    "shortsReason": "Blocage Reels/Shorts"
   },
   "analytics": {
     "title": "Analytiques",
@@ -342,7 +346,7 @@
     "quickBlocksTitle": "Blocages rapides",
     "scheduledBlocksTitle": "Blocages programmés",
     "reelsBlocking": "Bloquer Reels & Shorts",
-    "reelsBlockingDesc": "Bloque les flux de vidéos courtes (YouTube Shorts, Reels Instagram/Facebook, TikTok) dans les navigateurs pris en charge."
+    "reelsBlockingDesc": "Bloque TikTok entièrement (tout son contenu est court), plus YouTube Shorts / Reels Instagram et Facebook — dans les navigateurs, et de façon expérimentale dans les applis elles-mêmes (peut ne pas tout détecter)."
   },
   "profiles": {
     "title": "Profils Limiteurs",
