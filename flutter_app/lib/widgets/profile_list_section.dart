@@ -22,6 +22,7 @@ class ProfileListSection extends ConsumerWidget {
     final colors = AppTheme.colorsOf(context);
     final i18n = ref.watch(i18nProvider);
     String t(String key, [Map<String, dynamic>? vars]) => i18n.t('profiles', key, vars: vars);
+    String tb(String key) => i18n.t('blockLists', key);
     final profiles = ref.watch(appStoreProvider).limiterProfiles;
 
     return Column(
@@ -30,7 +31,10 @@ class ProfileListSection extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(t('title'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: colors.foreground)),
+            // "Blocages programmés" — was profiles.title ("Limiter
+            // Profiles"), now the section-specific label matching
+            // BlocklistsIndexScreen's "Blocages rapides" section above it.
+            Text(tb('scheduledBlocksTitle'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: colors.foreground)),
             OutlinedButton(
               onPressed: () => context.push('/profiles/create'),
               style: OutlinedButton.styleFrom(

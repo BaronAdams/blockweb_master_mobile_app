@@ -10,14 +10,19 @@ import '../../state/installed_apps.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/app_icon.dart';
 import '../../widgets/danger_button.dart';
+import '../../widgets/entry_icon.dart';
 import '../../widgets/progress_bar.dart';
 import '../../widgets/section_title.dart';
 
-/// Port of app/profiles/[id].tsx. Resolves profile.apps (package names) to
-/// display labels via installedAppsProvider, same as the RN screen's
-/// useInstalledApps() — falls back to the raw package name when a lookup
-/// misses (e.g. the app was uninstalled since it was added to the profile).
+/// Port of app/profiles/[id].tsx, redesigned after the chrome extension's
+/// dashboard/pages/TimerProfileDetail.tsx: header with back/edit/delete +
+/// active toggle, a consumption card, the interval rules (interval type
+/// only), then the watched apps (real installed-app icons) and watched
+/// sites (favicons) as two separate lists instead of one combined
+/// "watchedSites" text list — matches how the profile actually targets
+/// both apps and sites, not just sites.
 class ProfileDetailScreen extends ConsumerWidget {
   final String id;
   const ProfileDetailScreen({super.key, required this.id});
@@ -49,9 +54,10 @@ class ProfileDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = AppTheme.colorsOf(context);
     final i18n = ref.watch(i18nProvider);
-    String t(String key) => i18n.t('profiles', key);
+    String t(String key, [Map<String, dynamic>? vars]) => i18n.t('profiles', key, vars: vars);
     String ts(String key) => i18n.t('strictMode', key);
     String tc(String key) => i18n.t('common', key);
+    String tb(String key) => i18n.t('blockLists', key);
     final store = ref.watch(appStoreProvider);
     final notifier = ref.read(appStoreProvider.notifier);
 
@@ -99,11 +105,14 @@ class ProfileDetailScreen extends ConsumerWidget {
       return packageName;
     }
 
-    final watchedNames = [
-      ...profile.apps.map(resolveAppLabel),
-      ...profile.websites,
-      ...profile.keywords,
-    ];
+    String? resolveAppIcon(String packageName) {
+      for (final app in installedApps) {
+        if (app.packageName == packageName) return app.icon;
+      }
+      return null;
+    }
+
+    final monitoredCount = profile.apps.length + profile.websites.length + profile.keywords.length;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -113,6 +122,18 @@ class ProfileDetailScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
+                InkWell(
+                  onTap: () => context.canPop() ? context.pop() : context.go('/blocklists'),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(color: colors.card, border: Border.all(color: colors.border), borderRadius: BorderRadius.circular(10)),
+                    alignment: Alignment.center,
+                    child: Icon(Icons.arrow_back_rounded, size: 16, color: colors.mutedForeground),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Container(
                   width: 44,
                   height: 44,
@@ -125,9 +146,20 @@ class ProfileDetailScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(profile.name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: colors.foreground)),
+                      Text(profile.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: colors.foreground)),
                       Text(t(meta.labelKey), style: TextStyle(fontSize: 12, color: colors.mutedForeground)),
                     ],
+                  ),
+                ),
+                InkWell(
+                  onTap: () => context.push('/profiles/${profile!.id}/edit'),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(color: colors.card, border: Border.all(color: colors.border), borderRadius: BorderRadius.circular(10)),
+                    alignment: Alignment.center,
+                    child: Icon(Icons.edit_outlined, size: 15, color: colors.mutedForeground),
                   ),
                 ),
               ],
@@ -142,7 +174,7 @@ class ProfileDetailScreen extends ConsumerWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Statut', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.foreground)),
+                        Text(t('detailsStats'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.foreground)),
                         Text(profile.isActive ? ts('activeShrt') : t('waiting'),
                             style: TextStyle(fontSize: 11, color: colors.mutedForeground)),
                       ],
@@ -175,6 +207,11 @@ class ProfileDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 10),
                   Text('${t('remaining')}: ${formatMinutes(remainingMinutes)}',
                       style: TextStyle(fontSize: 11, color: colors.mutedForeground)),
+                  if (profile.activeDays != null && profile.activeDays!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text('${t('appDays')}: ${profile.activeDays!.map((d) => d.name).join(', ')}',
+                        style: TextStyle(fontSize: 11, color: colors.mutedForeground)),
+                  ],
                 ],
               )
             else if (profile.intervalConfig != null)
@@ -196,27 +233,92 @@ class ProfileDetailScreen extends ConsumerWidget {
                 ],
               ),
             const SizedBox(height: 20),
+            Text(t('monitored', {'n': monitoredCount}).toUpperCase(),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.6, color: colors.mutedForeground)),
+            const SizedBox(height: 8),
+            AppCard(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: SectionTitle(t('watchedApps')),
+                ),
+                if (profile.apps.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Text(t('noSite'), style: TextStyle(fontSize: 12, color: colors.mutedForeground)),
+                  )
+                else
+                  for (int i = 0; i < profile.apps.length; i++) ...[
+                    if (i > 0) const AppSeparator(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Row(
+                        children: [
+                          AppIcon(appName: resolveAppLabel(profile.apps[i]), icon: resolveAppIcon(profile.apps[i]), size: 28),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(resolveAppLabel(profile.apps[i]),
+                                maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, color: colors.foreground)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+              ],
+            ),
+            const SizedBox(height: 16),
             AppCard(
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: SectionTitle(t('watchedSites')),
                 ),
-                if (watchedNames.isEmpty)
+                if (profile.websites.isEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: Text(t('noSite'), style: TextStyle(fontSize: 12, color: colors.mutedForeground)),
                   )
                 else
-                  for (int i = 0; i < watchedNames.length; i++) ...[
+                  for (int i = 0; i < profile.websites.length; i++) ...[
                     if (i > 0) const AppSeparator(),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Text(watchedNames[i], style: TextStyle(fontSize: 14, color: colors.foreground)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Row(
+                        children: [
+                          EntryIcon(name: profile.websites[i], type: EntryIconType.site, color: colors.mutedForeground, size: 26),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(profile.websites[i],
+                                maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, color: colors.foreground)),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
               ],
             ),
+            if (profile.keywords.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              AppCard(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  SectionTitle(tb('blockedKeywords')),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final keyword in profile.keywords)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(color: colors.background, border: Border.all(color: colors.border), borderRadius: BorderRadius.circular(999)),
+                          child: Text(keyword, style: TextStyle(fontSize: 12, color: colors.foreground)),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 20),
             DangerButton(
               label: strictModeActive ? t('strictBlocked') : t('deleteProfile'),

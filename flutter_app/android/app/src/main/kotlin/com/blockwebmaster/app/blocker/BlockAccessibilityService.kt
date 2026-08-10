@@ -1,6 +1,10 @@
 package com.blockwebmaster.app.blocker
 
 import android.accessibilityservice.AccessibilityService
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
@@ -30,6 +34,30 @@ class BlockAccessibilityService : AccessibilityService() {
   private var lastUrlCheckMs: Long = 0L
   private var lastCheckedUrl: String? = null
 
+  // TYPE_WINDOW_STATE_CHANGED doesn't fire just because the screen turns
+  // off — the foreground app doesn't change, the display just goes dark —
+  // so without this, a locked phone with an app still "foreground" kept
+  // accruing tracked time via the heartbeat below for as long as it sat
+  // locked. screenOn gates recordElapsed() so only time the screen was
+  // actually on (i.e. the app's UI was genuinely visible/open) counts.
+  private var screenOn = true
+  private val screenReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+      when (intent.action) {
+        Intent.ACTION_SCREEN_OFF -> {
+          // Flush whatever's accrued right up to the screen going dark —
+          // that dwell time is real — before gating further accrual.
+          recordElapsed(SystemClock.elapsedRealtime())
+          screenOn = false
+        }
+        Intent.ACTION_SCREEN_ON -> {
+          screenOn = true
+          lastEventTimeMs = SystemClock.elapsedRealtime()
+        }
+      }
+    }
+  }
+
   private lateinit var overlay: BlockOverlay
 
   // Without a periodic flush, dwell time was only ever persisted at the
@@ -55,10 +83,15 @@ class BlockAccessibilityService : AccessibilityService() {
     super.onServiceConnected()
     overlay = BlockOverlay(this)
     heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS)
+    registerReceiver(screenReceiver, IntentFilter().apply {
+      addAction(Intent.ACTION_SCREEN_OFF)
+      addAction(Intent.ACTION_SCREEN_ON)
+    })
   }
 
   override fun onDestroy() {
     heartbeatHandler.removeCallbacks(heartbeatRunnable)
+    try { unregisterReceiver(screenReceiver) } catch (e: Exception) {}
     super.onDestroy()
   }
 
@@ -121,6 +154,7 @@ class BlockAccessibilityService : AccessibilityService() {
   }
 
   private fun recordElapsed(now: Long) {
+    if (!screenOn) return
     val pkg = lastPackageName ?: return
     if (pkg == this.packageName) return
     // Don't attribute dwell time to the launcher/systemui/keyboard — they
@@ -191,6 +225,15 @@ class BlockAccessibilityService : AccessibilityService() {
     lastCheckedUrl = url
 
     val host = BrowserUrlWatcher.extractHost(url)
+
+    // Checked before the generic domain list so a match gets the "adult"
+    // overlay copy/badge instead of the generic "site" one.
+    val adultDomain = adultDomains().firstOrNull { BrowserUrlWatcher.domainMatches(host, it) }
+    if (adultDomain != null) {
+      overlay.show(packageName, "adult", adultDomain)
+      return
+    }
+
     val blockedDomain = blockedDomains().firstOrNull { BrowserUrlWatcher.domainMatches(host, it) }
     if (blockedDomain != null) {
       overlay.show(packageName, "site", blockedDomain)
@@ -206,6 +249,7 @@ class BlockAccessibilityService : AccessibilityService() {
 
   private fun blockedDomains(): Set<String> = prefs().getStringSet(BLOCKED_DOMAINS_KEY, emptySet()) ?: emptySet()
   private fun blockedKeywords(): Set<String> = prefs().getStringSet(BLOCKED_KEYWORDS_KEY, emptySet()) ?: emptySet()
+  private fun adultDomains(): Set<String> = prefs().getStringSet(ADULT_DOMAINS_KEY, emptySet()) ?: emptySet()
 
   private fun prefs(): SharedPreferences =
     applicationContext.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -215,6 +259,7 @@ class BlockAccessibilityService : AccessibilityService() {
     const val BLOCKED_PACKAGES_KEY = "blocked_packages"
     const val BLOCKED_DOMAINS_KEY = "blocked_domains"
     const val BLOCKED_KEYWORDS_KEY = "blocked_keywords"
+    const val ADULT_DOMAINS_KEY = "adult_domains"
     const val STATS_PREFIX = "usage:"
     const val DAYS_KEY = "usage_days"
     const val HOURLY_PREFIX = "usage_hourly:"

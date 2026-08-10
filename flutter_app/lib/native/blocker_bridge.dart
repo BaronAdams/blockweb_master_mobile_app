@@ -56,6 +56,16 @@ class BlockerBridge {
     } catch (_) {}
   }
 
+  /// Separate from setBlockedDomains — matched first natively so a hit
+  /// shows the "adult" overlay reason (dedicated copy/badge) instead of
+  /// the generic "site" one. See native/toggle_block_lists.dart.
+  static Future<void> setAdultDomains(List<String> domains) async {
+    if (!_supported) return;
+    try {
+      await _channel.invokeMethod('setAdultDomains', {'domains': domains});
+    } catch (_) {}
+  }
+
   /// { [date]: { [packageName]: minutes } }
   static Future<Map<String, Map<String, double>>> getUsageStats() async {
     if (!_supported) return {};

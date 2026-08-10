@@ -17,10 +17,12 @@ import '../screens/tabs/blocklists/keywords_screen.dart';
 import '../screens/tabs/blocklists/websites_screen.dart';
 import '../screens/tabs/blocklists/whitelist_screen.dart';
 import '../screens/tabs/account_screen.dart';
+import '../screens/tabs/category_picker_screen.dart';
 import '../screens/tabs/strict_mode_screen.dart';
 import '../screens/profiles/choose_type_screen.dart';
 import '../screens/profiles/create_profile_screen.dart';
 import '../screens/profiles/profile_detail_screen.dart';
+import '../screens/profiles/profile_edit_screen.dart';
 import '../state/app_settings.dart';
 import '../state/app_store.dart';
 import '../state/session_sync.dart';
@@ -121,6 +123,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profiles/:id',
         builder: (context, state) => ProfileDetailScreen(id: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/profiles/:id/edit',
+        builder: (context, state) => ProfileEditScreen(id: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        // go_router/Uri already percent-decode path params and query
+        // params, so these arrive as-is — no manual Uri.decodeComponent
+        // needed (that would double-decode).
+        path: '/analytics/category/:packageName',
+        builder: (context, state) => CategoryPickerScreen(
+          packageName: state.pathParameters['packageName']!,
+          appName: state.uri.queryParameters['name'] ?? '',
+          icon: state.uri.queryParameters['icon'],
+        ),
       ),
 
       ShellRoute(

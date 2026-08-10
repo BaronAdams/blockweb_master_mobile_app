@@ -59,6 +59,14 @@ class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHand
           result.success(null)
         }
 
+        "setAdultDomains" -> {
+          val domains = (call.argument<List<String>>("domains") ?: emptyList())
+          prefs().edit()
+            .putStringSet(BlockAccessibilityService.ADULT_DOMAINS_KEY, domains.toHashSet())
+            .apply()
+          result.success(null)
+        }
+
         "getUsageStats" -> result.success(readUsageStats())
         "getHourlyUsageStats" -> result.success(readHourlyUsageStats())
 

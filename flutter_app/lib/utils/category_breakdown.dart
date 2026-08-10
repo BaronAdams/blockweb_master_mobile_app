@@ -23,10 +23,16 @@ class CategoryBreakdown {
       };
 }
 
-CategoryBreakdown getCategoryBreakdown(Map<String, double> appUsage, List<String> productiveApps) {
+CategoryBreakdown getCategoryBreakdown(
+  Map<String, double> appUsage,
+  List<String> productiveApps, {
+  Map<String, String> categoryOverrides = const {},
+}) {
   double distraction = 0, productivity = 0, entertainment = 0, other = 0;
   for (final entry in appUsage.entries) {
-    final category = productiveApps.contains(entry.key) ? SiteCategory.productivity : categorizeApp(entry.key);
+    final category = productiveApps.contains(entry.key)
+        ? SiteCategory.productivity
+        : resolveAppCategory(entry.key, categoryOverrides);
     switch (category) {
       case SiteCategory.distraction:
         distraction += entry.value;

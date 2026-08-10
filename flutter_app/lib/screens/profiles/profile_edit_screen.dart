@@ -13,6 +13,7 @@ import '../../widgets/app_header.dart';
 import '../../widgets/app_icon.dart';
 import '../../widgets/app_input.dart';
 import '../../widgets/blocklist_ui.dart';
+import '../../widgets/danger_button.dart';
 import '../../widgets/section_title.dart';
 import '../../widgets/sub_screen_header.dart';
 
@@ -32,41 +33,32 @@ const Map<LimiterType, String> _limitKeyByType = {
   LimiterType.weekly: 'weeklyLimit',
 };
 
-/// Port of app/profiles/create/[type].tsx.
-class CreateProfileScreen extends ConsumerStatefulWidget {
-  final String typeParam;
-  const CreateProfileScreen({super.key, required this.typeParam});
+/// Edit an existing LimiterProfile — same fields as CreateProfileScreen
+/// (kept as a separate screen rather than sharing one widget with two
+/// modes, matching how the chrome extension keeps TimerProfileCreate and
+/// TimerProfileEdit as separate files). Reachable from ProfileDetailScreen's
+/// edit button.
+class ProfileEditScreen extends ConsumerStatefulWidget {
+  final String id;
+  const ProfileEditScreen({super.key, required this.id});
 
   @override
-  ConsumerState<CreateProfileScreen> createState() => _CreateProfileScreenState();
+  ConsumerState<ProfileEditScreen> createState() => _ProfileEditScreenState();
 }
 
-class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
-  final _name = TextEditingController();
+class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
+  late final TextEditingController _name;
   final _websiteInput = TextEditingController();
   final _keywordInput = TextEditingController();
-  final _limitMinutes = TextEditingController(text: '60');
-  final _startTime = TextEditingController(text: '09:00');
-  final _endTime = TextEditingController(text: '17:30');
+  late final TextEditingController _limitMinutes;
+  late final TextEditingController _startTime;
+  late final TextEditingController _endTime;
 
-  final List<String> _websites = [];
-  final List<String> _keywords = [];
-  final Set<String> _selectedApps = {};
-  // Defaults to every day selected — "every day" is the natural default
-  // for a fresh profile, and matches emptyDays' "leave empty = every day"
-  // semantics (all 7 selected round-trips to "no restriction" on save).
-  List<DayOfWeek> _selectedDays = List.of(DayOfWeek.values);
-
-  @override
-  void initState() {
-    super.initState();
-    // canSubmit depends on _name.text — rebuild as the user types so the
-    // Create button's enabled state stays live, matching the RN screen's
-    // `useState` reactivity.
-    _name.addListener(_onNameChanged);
-  }
-
-  void _onNameChanged() => setState(() {});
+  late List<String> _websites;
+  late List<String> _keywords;
+  late Set<String> _selectedApps;
+  late List<DayOfWeek> _selectedDays;
+  bool _initialized = false;
 
   @override
   void dispose() {
@@ -79,12 +71,27 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     super.dispose();
   }
 
-  LimiterType get _type {
-    try {
-      return LimiterType.values.byName(widget.typeParam);
-    } catch (_) {
-      return LimiterType.daily;
-    }
+  void _initFrom(LimiterProfile profile) {
+    if (_initialized) return;
+    _initialized = true;
+    _name = TextEditingController(text: profile.name)..addListener(() => setState(() {}));
+    final limit = switch (profile.type) {
+      LimiterType.daily => profile.dailyLimitMinutes,
+      LimiterType.hourly => profile.hourlyLimitMinutes,
+      LimiterType.weekly => profile.weeklyLimitMinutes,
+      LimiterType.interval => null,
+    };
+    _limitMinutes = TextEditingController(text: '${limit ?? 60}');
+    _startTime = TextEditingController(text: profile.intervalConfig?.startTime ?? '09:00');
+    _endTime = TextEditingController(text: profile.intervalConfig?.endTime ?? '17:30');
+    _websites = List.of(profile.websites);
+    _keywords = List.of(profile.keywords);
+    _selectedApps = profile.apps.toSet();
+    _selectedDays = List.of(
+      profile.type == LimiterType.interval
+          ? (profile.intervalConfig?.days ?? DayOfWeek.values)
+          : (profile.activeDays?.isNotEmpty == true ? profile.activeDays! : DayOfWeek.values),
+    );
   }
 
   @override
@@ -96,13 +103,31 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     String tc(String key) => i18n.t('common', key);
     final store = ref.watch(appStoreProvider);
     final notifier = ref.read(appStoreProvider.notifier);
+    final installedAppsAsync = ref.watch(installedAppsProvider);
 
-    final meta = profileTypeMeta[_type]!;
+    LimiterProfile? profile;
+    for (final p in store.limiterProfiles) {
+      if (p.id == widget.id) {
+        profile = p;
+        break;
+      }
+    }
+
+    if (profile == null) {
+      return Scaffold(
+        backgroundColor: colors.background,
+        body: Center(child: Text(t('profileNotExists'), style: TextStyle(color: colors.mutedForeground))),
+      );
+    }
+    _initFrom(profile);
+    final type = profile.type;
+    final meta = profileTypeMeta[type]!;
+    final strictActive = store.strictMode.isActive;
+
     final limits = limitsFor(store.plan);
     final totalElements = _selectedApps.length + _websites.length + _keywords.length;
     final atLimit = !isPremium(store.plan) && totalElements >= limits.maxAppsPerProfile;
-    final canSubmit = _name.text.trim().isNotEmpty && totalElements > 0;
-    final installedAppsAsync = ref.watch(installedAppsProvider);
+    final canSubmit = _name.text.trim().isNotEmpty && totalElements > 0 && !strictActive;
 
     void toggleApp(String packageName) {
       setState(() {
@@ -137,50 +162,49 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
     void toggleDay(DayOfWeek day) {
       setState(() {
-        _selectedDays = _selectedDays.contains(day)
-            ? _selectedDays.where((d) => d != day).toList()
-            : [..._selectedDays, day];
+        _selectedDays =
+            _selectedDays.contains(day) ? _selectedDays.where((d) => d != day).toList() : [..._selectedDays, day];
       });
     }
 
-    void onSubmit() {
+    void onSave() {
       if (!canSubmit) return;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final limitMinutes = int.tryParse(_limitMinutes.text) ?? (_type == LimiterType.hourly ? 30 : 60);
+      final id = profile!.id;
+      final limitMinutes = int.tryParse(_limitMinutes.text) ?? (type == LimiterType.hourly ? 30 : 60);
 
-      notifier.addProfile(LimiterProfile(
-        id: '$now',
-        name: _name.text.trim(),
-        type: _type,
-        apps: _selectedApps.toList(),
-        websites: _websites,
-        keywords: _keywords,
-        isActive: true,
-        createdAt: now,
-        dailyLimitMinutes: _type == LimiterType.daily ? limitMinutes : null,
-        dailyUsedMinutes: _type == LimiterType.daily ? 0 : null,
-        dailyResetAt: _type == LimiterType.daily ? now : null,
-        hourlyLimitMinutes: _type == LimiterType.hourly ? limitMinutes : null,
-        hourlyUsedMinutes: _type == LimiterType.hourly ? 0 : null,
-        weeklyLimitMinutes: _type == LimiterType.weekly ? limitMinutes : null,
-        weeklyUsedMinutes: _type == LimiterType.weekly ? 0 : null,
-        weeklyResetAt: _type == LimiterType.weekly ? now : null,
-        // Empty selection means "every day" — only stored when the user
-        // actually narrowed it down, matching emptyDays's "leave empty =
-        // every day" copy.
-        activeDays: (_type == LimiterType.daily || _type == LimiterType.hourly) && _selectedDays.isNotEmpty
-            ? _selectedDays
-            : null,
-        intervalConfig: _type == LimiterType.interval
-            ? IntervalConfig(startTime: _startTime.text, endTime: _endTime.text, days: _selectedDays)
-            : null,
-      ));
+      notifier.updateProfile(id, (p) => LimiterProfile(
+            id: p.id,
+            name: _name.text.trim(),
+            type: p.type,
+            apps: _selectedApps.toList(),
+            websites: _websites,
+            keywords: _keywords,
+            isActive: p.isActive,
+            createdAt: p.createdAt,
+            dailyLimitMinutes: type == LimiterType.daily ? limitMinutes : p.dailyLimitMinutes,
+            dailyUsedMinutes: p.dailyUsedMinutes,
+            dailyResetAt: p.dailyResetAt,
+            hourlyLimitMinutes: type == LimiterType.hourly ? limitMinutes : p.hourlyLimitMinutes,
+            hourlyUsedMinutes: p.hourlyUsedMinutes,
+            weeklyLimitMinutes: type == LimiterType.weekly ? limitMinutes : p.weeklyLimitMinutes,
+            weeklyUsedMinutes: p.weeklyUsedMinutes,
+            weeklyResetAt: p.weeklyResetAt,
+            activeDays: (type == LimiterType.daily || type == LimiterType.hourly) && _selectedDays.isNotEmpty
+                ? _selectedDays
+                : null,
+            intervalConfig: type == LimiterType.interval
+                ? IntervalConfig(startTime: _startTime.text, endTime: _endTime.text, days: _selectedDays)
+                : null,
+          ));
 
+      if (context.canPop()) context.pop();
+    }
+
+    void onDelete() {
+      notifier.deleteProfile(profile!.id);
       while (context.canPop()) {
         context.pop();
       }
-      // Profiles now live inside the Block Lists tab (see
-      // BlocklistsIndexScreen) instead of their own route/tab.
       context.go('/blocklists');
     }
 
@@ -189,7 +213,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
       body: Column(
         children: [
           const AppHeader(),
-          SubScreenHeader(title: t(meta.labelKey)),
+          SubScreenHeader(title: t('editTitle')),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 60),
@@ -212,7 +236,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                 ),
                 const SizedBox(height: 20),
                 SectionTitle(t('profileName')),
-                AppInput(icon: Icons.badge_outlined, placeholder: t('namePlaceholder'), controller: _name, textCapitalization: TextCapitalization.sentences),
+                AppInput(icon: Icons.badge_outlined, placeholder: t('namePlaceholder'), controller: _name, textCapitalization: TextCapitalization.sentences, enabled: !strictActive),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -221,41 +245,30 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                     LimitBadge(count: totalElements, max: isPremium(store.plan) ? double.infinity : limits.maxAppsPerProfile),
                   ],
                 ),
-                // Bounded height so a long installed-apps list doesn't push
-                // the rest of the form off screen — scrolls independently.
                 Container(
                   constraints: const BoxConstraints(maxHeight: 260),
-                  decoration: BoxDecoration(
-                    color: colors.card,
-                    border: Border.all(color: colors.border),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                  decoration: BoxDecoration(color: colors.card, border: Border.all(color: colors.border), borderRadius: BorderRadius.circular(14)),
                   clipBehavior: Clip.antiAlias,
                   child: installedAppsAsync.when(
                     loading: () => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Center(child: CircularProgressIndicator(color: colors.primary)),
                     ),
-                    error: (err, st) => Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(tb('noApp'), style: TextStyle(fontSize: 12, color: colors.mutedForeground)),
-                    ),
+                    error: (err, st) => Padding(padding: const EdgeInsets.all(16), child: Text(tb('noApp'), style: TextStyle(fontSize: 12, color: colors.mutedForeground))),
                     data: (apps) => ListView.builder(
                       shrinkWrap: true,
                       itemCount: apps.length,
                       itemBuilder: (context, index) {
                         final app = apps[index];
                         final isSelected = _selectedApps.contains(app.packageName);
-                        final disabled = !isSelected && atLimit;
+                        final disabled = strictActive || (!isSelected && atLimit);
                         return Opacity(
                           opacity: disabled ? 0.4 : 1,
                           child: InkWell(
                             onTap: disabled ? null : () => toggleApp(app.packageName),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                              decoration: BoxDecoration(
-                                border: index == 0 ? null : Border(top: BorderSide(color: colors.border)),
-                              ),
+                              decoration: BoxDecoration(border: index == 0 ? null : Border(top: BorderSide(color: colors.border))),
                               child: Row(
                                 children: [
                                   AppIcon(appName: app.appName, icon: app.icon, size: 28),
@@ -281,12 +294,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                 ),
                 const SizedBox(height: 20),
                 SectionTitle(tb('blockedDomains')),
-                AddRow(
-                  controller: _websiteInput,
-                  onAdd: addWebsite,
-                  placeholder: atLimit ? t('limitReached') : tb('domainPlaceholder'),
-                  disabled: atLimit,
-                ),
+                AddRow(controller: _websiteInput, onAdd: addWebsite, placeholder: atLimit ? t('limitReached') : tb('domainPlaceholder'), disabled: atLimit || strictActive),
                 if (_websites.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -295,18 +303,13 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                       runSpacing: 8,
                       children: [
                         for (final domain in _websites)
-                          _Chip(label: domain, onRemove: () => setState(() => _websites.remove(domain))),
+                          _Chip(label: domain, onRemove: strictActive ? null : () => setState(() => _websites.remove(domain))),
                       ],
                     ),
                   ),
                 const SizedBox(height: 12),
                 SectionTitle(tb('blockedKeywords')),
-                AddRow(
-                  controller: _keywordInput,
-                  onAdd: addKeyword,
-                  placeholder: atLimit ? t('limitReached') : tb('keywordPlaceholder'),
-                  disabled: atLimit,
-                ),
+                AddRow(controller: _keywordInput, onAdd: addKeyword, placeholder: atLimit ? t('limitReached') : tb('keywordPlaceholder'), disabled: atLimit || strictActive),
                 if (_keywords.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -315,22 +318,16 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                       runSpacing: 8,
                       children: [
                         for (final keyword in _keywords)
-                          _Chip(label: keyword, onRemove: () => setState(() => _keywords.remove(keyword))),
+                          _Chip(label: keyword, onRemove: strictActive ? null : () => setState(() => _keywords.remove(keyword))),
                       ],
                     ),
                   ),
-                if (_type == LimiterType.daily || _type == LimiterType.hourly || _type == LimiterType.weekly) ...[
+                if (type == LimiterType.daily || type == LimiterType.hourly || type == LimiterType.weekly) ...[
                   const SizedBox(height: 12),
-                  SectionTitle(t(_limitKeyByType[_type]!)),
-                  AppInput(
-                    icon: Icons.timer_outlined,
-                    placeholder: '60',
-                    controller: _limitMinutes,
-                    keyboardType: TextInputType.number,
-                    textCapitalization: TextCapitalization.none,
-                  ),
+                  SectionTitle(t(_limitKeyByType[type]!)),
+                  AppInput(icon: Icons.timer_outlined, placeholder: '60', controller: _limitMinutes, keyboardType: TextInputType.number, textCapitalization: TextCapitalization.none, enabled: !strictActive),
                 ],
-                if (_type == LimiterType.daily || _type == LimiterType.hourly) ...[
+                if (type == LimiterType.daily || type == LimiterType.hourly) ...[
                   const SizedBox(height: 16),
                   SectionTitle(t('appDays')),
                   Text(t('emptyDays'), style: TextStyle(fontSize: 11, color: colors.mutedForeground)),
@@ -340,11 +337,11 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                     runSpacing: 8,
                     children: [
                       for (final (day, key) in _days)
-                        _DayChip(label: tc(key), active: _selectedDays.contains(day), onTap: () => toggleDay(day)),
+                        _DayChip(label: tc(key), active: _selectedDays.contains(day), onTap: strictActive ? null : () => toggleDay(day)),
                     ],
                   ),
                 ],
-                if (_type == LimiterType.interval) ...[
+                if (type == LimiterType.interval) ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -353,7 +350,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             SectionTitle(t('timeRanges')),
-                            AppInput(icon: Icons.schedule_outlined, placeholder: '09:00', controller: _startTime, textCapitalization: TextCapitalization.none),
+                            AppInput(icon: Icons.schedule_outlined, placeholder: '09:00', controller: _startTime, textCapitalization: TextCapitalization.none, enabled: !strictActive),
                           ],
                         ),
                       ),
@@ -363,7 +360,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 18),
-                            AppInput(icon: Icons.schedule_outlined, placeholder: '17:30', controller: _endTime, textCapitalization: TextCapitalization.none),
+                            AppInput(icon: Icons.schedule_outlined, placeholder: '17:30', controller: _endTime, textCapitalization: TextCapitalization.none, enabled: !strictActive),
                           ],
                         ),
                       ),
@@ -376,27 +373,29 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                     runSpacing: 8,
                     children: [
                       for (final (day, key) in _days)
-                        _DayChip(
-                          label: tc(key),
-                          active: _selectedDays.contains(day),
-                          onTap: () => toggleDay(day),
-                        ),
+                        _DayChip(label: tc(key), active: _selectedDays.contains(day), onTap: strictActive ? null : () => toggleDay(day)),
                     ],
                   ),
                 ],
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: canSubmit ? onSubmit : null,
+                    onPressed: canSubmit ? onSave : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.primary,
                       foregroundColor: colors.primaryForeground,
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: Text(t('create')),
+                    child: Text(t('saveChanges')),
                   ),
+                ),
+                const SizedBox(height: 12),
+                DangerButton(
+                  label: strictActive ? t('strictBlocked') : t('deleteProfile'),
+                  icon: Icons.delete_outline_rounded,
+                  onPressed: strictActive ? null : onDelete,
                 ),
               ],
             ),
@@ -409,7 +408,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
 class _Chip extends StatelessWidget {
   final String label;
-  final VoidCallback onRemove;
+  final VoidCallback? onRemove;
   const _Chip({required this.label, required this.onRemove});
 
   @override
@@ -417,17 +416,15 @@ class _Chip extends StatelessWidget {
     final colors = AppTheme.colorsOf(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: colors.card,
-        border: Border.all(color: colors.border),
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: colors.card, border: Border.all(color: colors.border), borderRadius: BorderRadius.circular(999)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label, style: TextStyle(fontSize: 12, color: colors.foreground)),
-          const SizedBox(width: 6),
-          InkWell(onTap: onRemove, child: Icon(Icons.close_rounded, size: 12, color: colors.mutedForeground)),
+          if (onRemove != null) ...[
+            const SizedBox(width: 6),
+            InkWell(onTap: onRemove, child: Icon(Icons.close_rounded, size: 12, color: colors.mutedForeground)),
+          ],
         ],
       ),
     );
@@ -437,7 +434,7 @@ class _Chip extends StatelessWidget {
 class _DayChip extends StatelessWidget {
   final String label;
   final bool active;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _DayChip({required this.label, required this.active, required this.onTap});
 
   @override
@@ -453,8 +450,7 @@ class _DayChip extends StatelessWidget {
           border: Border.all(color: active ? colors.primary : colors.border),
           borderRadius: BorderRadius.circular(999),
         ),
-        child: Text(label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: active ? colors.primaryForeground : colors.foreground)),
+        child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: active ? colors.primaryForeground : colors.foreground)),
       ),
     );
   }
