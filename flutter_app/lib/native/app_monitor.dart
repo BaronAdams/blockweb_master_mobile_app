@@ -48,6 +48,8 @@ class AppMonitorService {
   static String? _lastSyncedDomains;
   static String? _lastSyncedKeywords;
   static String? _lastSyncedAdultDomains;
+  static bool? _lastSyncedAdultContentBlocked;
+  static bool? _lastSyncedReelsShortsBlocked;
   static String? _lastSyncedLanguage;
 
   /// Call once at startup with the app's ProviderContainer (see main.dart),
@@ -97,12 +99,18 @@ class AppMonitorService {
     _syncBlockedDomains(state, profileTargets.domains);
     _syncBlockedKeywords(state, profileTargets.keywords);
     _syncAdultDomains(state);
+    _syncAdultContentBlocked(state);
+    _syncReelsShortsBlocked(state);
   }
 
   static void _syncBlockedApps(AppStoreState state, Set<String> profileApps) {
     final effective = <String>{
       ...state.blockedApps.where((a) => a.isBlocked).map((a) => a.packageName),
       ...profileApps,
+      // TikTok is 100% short-form video — blocking the whole app IS
+      // blocking its shorts feed, no in-app detection needed (unlike
+      // Instagram/Facebook/YouTube, see ShortsFeedDetector.kt).
+      if (state.reelsShortsBlocked) ...tiktokPackageNames,
     };
     final key = (effective.toList()..sort()).join(',');
     if (_lastSyncedApps == key) return;
@@ -144,6 +152,18 @@ class AppMonitorService {
     if (_lastSyncedAdultDomains == key) return;
     _lastSyncedAdultDomains = key;
     BlockerBridge.setAdultDomains(key.isEmpty ? [] : key.split(','));
+  }
+
+  static void _syncAdultContentBlocked(AppStoreState state) {
+    if (_lastSyncedAdultContentBlocked == state.adultContentBlocked) return;
+    _lastSyncedAdultContentBlocked = state.adultContentBlocked;
+    BlockerBridge.setAdultContentBlocked(state.adultContentBlocked);
+  }
+
+  static void _syncReelsShortsBlocked(AppStoreState state) {
+    if (_lastSyncedReelsShortsBlocked == state.reelsShortsBlocked) return;
+    _lastSyncedReelsShortsBlocked = state.reelsShortsBlocked;
+    BlockerBridge.setReelsShortsBlocked(state.reelsShortsBlocked);
   }
 
   static void _syncBlockScreenStrings(I18nService i18n) {

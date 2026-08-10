@@ -10,7 +10,7 @@ import '../l10n/i18n_service.dart';
 /// single "{{value}}" token per description, so templated strings are
 /// pre-rendered here with the real i18n interpolation passed the literal
 /// token itself, rather than reimplementing the {{var}} syntax in Kotlin.
-const _reasonKeys = ['app', 'site', 'keyword', 'adult', 'daily', 'hourly', 'weekly', 'interval'];
+const _reasonKeys = ['app', 'site', 'keyword', 'adult', 'shorts', 'daily', 'hourly', 'weekly', 'interval'];
 
 String buildBlockScreenStringsJson(I18nService i18n) {
   String t(String key, [Map<String, dynamic>? vars]) => i18n.t('blocked', key, vars: vars);
@@ -60,6 +60,16 @@ String buildBlockScreenStringsJson(I18nService i18n) {
         badge: t('adultBadge'),
         detailLabel: t('adultBlockedSite'),
         reasonLabel: t('adultReason'),
+      ),
+      'shorts': reason(
+        title: t('shortsBlockedTitle'),
+        desc: t('shortsDesc'),
+        badge: t('shortsBadge'),
+        // Unused in practice — native passes an empty value for "shorts"
+        // (no specific domain/keyword to show), so BlockOverlay.kt's
+        // detail row never renders for this reason.
+        detailLabel: t('blockedApplication'),
+        reasonLabel: t('shortsReason'),
       ),
       'daily': reason(
         title: t('dailyTitle'),

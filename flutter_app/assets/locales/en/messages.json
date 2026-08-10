@@ -229,7 +229,11 @@
     "quote_9_desc": "Lack of direction, not lack of time, is the problem.",
     "quote_9_author": "Zig Ziglar",
     "quote_10_desc": "Take one step at a time, but do it now.",
-    "quote_10_author": ""
+    "quote_10_author": "",
+    "shortsBlockedTitle": "Short-Form Video Blocked",
+    "shortsDesc": "Reels/Shorts feeds are blocked to help you avoid endless scrolling.",
+    "shortsBadge": "Reels/Shorts",
+    "shortsReason": "Reels/Shorts blocking"
   },
   "analytics": {
     "title": "Analytics",
@@ -342,7 +346,7 @@
     "quickBlocksTitle": "Quick Blocks",
     "scheduledBlocksTitle": "Scheduled Blocks",
     "reelsBlocking": "Block Reels & Shorts",
-    "reelsBlockingDesc": "Blocks short-form video feeds (YouTube Shorts, Instagram/Facebook Reels, TikTok) in supported browsers."
+    "reelsBlockingDesc": "Blocks TikTok entirely (it's all short-form video), plus YouTube Shorts / Instagram & Facebook Reels — in browsers, and best-effort within the apps themselves (experimental, may not catch every case)."
   },
   "profiles": {
     "title": "Limiter Profiles",

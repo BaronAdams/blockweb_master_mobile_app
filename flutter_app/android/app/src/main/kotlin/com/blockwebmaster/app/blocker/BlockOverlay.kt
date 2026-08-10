@@ -264,6 +264,7 @@ class BlockOverlay(private val service: AccessibilityService) {
     "hourly" -> Pair("#60a5fa", "#3b82f6")
     "weekly" -> Pair("#a78bfa", "#8b5cf6")
     "app" -> Pair("#fbbf24", "#f59e0b")
+    "shorts" -> Pair("#c4b5fd", "#9e4fe7") // matches the toggle's violet in blocklists_index_screen.dart
     else -> Pair("#fb7185", "#f43f5e") // site, keyword, adult, interval
   }
 
@@ -273,6 +274,7 @@ class BlockOverlay(private val service: AccessibilityService) {
     "hourly" -> svg(color, """<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>""")
     "weekly" -> svg(color, """<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>""")
     "interval" -> svg(color, """<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>""")
+    "shorts" -> svg(color, """<rect width="18" height="18" x="3" y="3" rx="4"/><path d="m10 8 5 4-5 4V8z"/>""") // play/video icon
     else -> svg(color, """<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>""") // site, keyword
   }
 

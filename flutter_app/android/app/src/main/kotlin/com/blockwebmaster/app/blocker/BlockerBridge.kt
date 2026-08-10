@@ -67,6 +67,23 @@ class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHand
           result.success(null)
         }
 
+        // Explicit flags (separate from the domain/keyword lists above) so
+        // native knows the toggle's own on/off state — needed to gate the
+        // heavier content-analysis fallback (AdultContentDetector) and the
+        // Reels/Shorts in-app check (ShortsFeedDetector), neither of which
+        // is driven by a plain list.
+        "setAdultContentBlocked" -> {
+          val enabled = call.argument<Boolean>("enabled") ?: false
+          prefs().edit().putBoolean(BlockAccessibilityService.ADULT_CONTENT_BLOCKED_KEY, enabled).apply()
+          result.success(null)
+        }
+
+        "setReelsShortsBlocked" -> {
+          val enabled = call.argument<Boolean>("enabled") ?: false
+          prefs().edit().putBoolean(BlockAccessibilityService.REELS_SHORTS_BLOCKED_KEY, enabled).apply()
+          result.success(null)
+        }
+
         "getUsageStats" -> result.success(readUsageStats())
         "getHourlyUsageStats" -> result.success(readHourlyUsageStats())
 

@@ -29,6 +29,7 @@ const _reasonMeta = {
   'app': _ReasonMeta(icon: Icons.lock_outline_rounded, color: Color(0xFFFB7185), titleKey: 'restrictedAccess', descKey: 'focusDesc', badgeKey: 'focusBadge', reasonKey: 'keywordReason'),
   'keyword': _ReasonMeta(icon: Icons.lock_outline_rounded, color: Color(0xFFFB7185), titleKey: 'restrictedAccess', descKey: 'keywordDesc', badgeKey: 'keywordBadge', reasonKey: 'keywordReason'),
   'adult': _ReasonMeta(icon: Icons.shield_moon_outlined, color: Color(0xFFFB7185), titleKey: 'adultBlocked', descKey: 'adultDesc', badgeKey: 'adultBadge', reasonKey: 'adultReason'),
+  'shorts': _ReasonMeta(icon: Icons.smart_display_outlined, color: Color(0xFF9E4FE7), titleKey: 'shortsBlockedTitle', descKey: 'shortsDesc', badgeKey: 'shortsBadge', reasonKey: 'shortsReason'),
   'daily': _ReasonMeta(icon: Icons.wb_sunny_outlined, color: Color(0xFFFBBF24), titleKey: 'dailyTitle', descKey: 'dailyDesc', badgeKey: 'dailyBadge', reasonKey: 'dailyReason'),
   'hourly': _ReasonMeta(icon: Icons.access_time_rounded, color: Color(0xFF60A5FA), titleKey: 'hourlyTitle', descKey: 'hourlyDesc', badgeKey: 'hourlyBadge', reasonKey: 'hourlyReason'),
   'weekly': _ReasonMeta(icon: Icons.calendar_month_outlined, color: Color(0xFFA78BFA), titleKey: 'weeklyTitle', descKey: 'weeklyDesc', badgeKey: 'weeklyBadge', reasonKey: 'weeklyReason'),

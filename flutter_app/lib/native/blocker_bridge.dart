@@ -66,6 +66,26 @@ class BlockerBridge {
     } catch (_) {}
   }
 
+  /// The toggle's own on/off state, separate from the domain list above —
+  /// gates BlockAccessibilityService's heavier content-analysis fallback
+  /// (AdultContentDetector.kt) for adult domains not in the curated list.
+  static Future<void> setAdultContentBlocked(bool enabled) async {
+    if (!_supported) return;
+    try {
+      await _channel.invokeMethod('setAdultContentBlocked', {'enabled': enabled});
+    } catch (_) {}
+  }
+
+  /// Gates the experimental in-app Reels/Shorts detector
+  /// (ShortsFeedDetector.kt) for Instagram/Facebook/YouTube — TikTok is
+  /// handled by blocking the whole app instead (see AppMonitorService).
+  static Future<void> setReelsShortsBlocked(bool enabled) async {
+    if (!_supported) return;
+    try {
+      await _channel.invokeMethod('setReelsShortsBlocked', {'enabled': enabled});
+    } catch (_) {}
+  }
+
   /// { [date]: { [packageName]: minutes } }
   static Future<Map<String, Map<String, double>>> getUsageStats() async {
     if (!_supported) return {};
