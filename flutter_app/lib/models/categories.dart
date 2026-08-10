@@ -129,3 +129,17 @@ SiteCategory categorizeApp(String packageName) {
   if (_productivityPackages.contains(packageName)) return SiteCategory.productivity;
   return SiteCategory.other;
 }
+
+/// Same as categorizeApp(), but checks a user-picked override first (see
+/// AppStoreState.categoryOverrides / screens/tabs/category_picker_screen.dart)
+/// — lets someone correct the curated-list heuristic for a specific app
+/// from Analytics history instead of being stuck with whatever it guessed.
+SiteCategory resolveAppCategory(String packageName, Map<String, String> overrides) {
+  final overridden = overrides[packageName];
+  if (overridden != null) {
+    try {
+      return SiteCategory.values.byName(overridden);
+    } catch (_) {}
+  }
+  return categorizeApp(packageName);
+}

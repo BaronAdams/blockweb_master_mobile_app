@@ -3,4 +3,12 @@
     <!-- Matches the RN app's adaptiveIcon.backgroundColor (app.json) and
          android-icon-background.png, which is a plain white fill. -->
     <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Native pre-Flutter-frame splash background (see
+         drawable/launch_background.xml) — white here, black in
+         values-night/colors.xml, so the OS picks the right one from its
+         own dark-mode setting before Flutter even starts. This only
+         covers the "follow system" case; an explicit in-app light/dark
+         override still can't be known before the Flutter engine boots
+         and reads it from SharedPreferences. -->
+    <color name="launch_background">#FFFFFF</color>
 </resources>

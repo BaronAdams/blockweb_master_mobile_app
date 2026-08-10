@@ -9,6 +9,7 @@ import '../state/app_store.dart';
 import 'block_screen_strings.dart';
 import 'blocker_bridge.dart';
 import 'profile_enforcement.dart';
+import 'toggle_block_lists.dart';
 
 /// Port of hooks/useAppMonitor.ts — bridges the store's blocklists/analytics
 /// to the real native blocking engine (android/.../blocker/). Started once
@@ -46,6 +47,7 @@ class AppMonitorService {
   static String? _lastSyncedApps;
   static String? _lastSyncedDomains;
   static String? _lastSyncedKeywords;
+  static String? _lastSyncedAdultDomains;
   static String? _lastSyncedLanguage;
 
   /// Call once at startup with the app's ProviderContainer (see main.dart),
@@ -73,10 +75,18 @@ class AppMonitorService {
     // daily/hourly/weekly profile's usage crossed its limit — neither
     // happens via a store mutation the listener above would catch, so this
     // re-evaluates on a plain timer too.
-    _periodicTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+    //
+    // This must call the FULL _refresh() (which pulls fresh usage stats
+    // from native), not just syncProfileUsage() — syncProfileUsage only
+    // recomputes profile usedMinutes from whatever's already in
+    // state.analytics, and until now nothing periodically refreshed
+    // state.analytics itself (only app-launch and app-resume did). A
+    // profile's tracked time inside it was effectively frozen at whatever
+    // it was the last time the app came to the foreground.
+    _periodicTimer = Timer.periodic(const Duration(minutes: 1), (_) async {
+      await _refresh();
       final c = _container;
       if (c == null) return;
-      c.read(appStoreProvider.notifier).syncProfileUsage();
       _syncAll(c.read(appStoreProvider));
     });
   }
@@ -86,6 +96,7 @@ class AppMonitorService {
     _syncBlockedApps(state, profileTargets.apps);
     _syncBlockedDomains(state, profileTargets.domains);
     _syncBlockedKeywords(state, profileTargets.keywords);
+    _syncAdultDomains(state);
   }
 
   static void _syncBlockedApps(AppStoreState state, Set<String> profileApps) {
@@ -114,11 +125,25 @@ class AppMonitorService {
     final effective = <String>{
       ...state.blockedKeywords.map((k) => k.keyword),
       ...profileKeywords,
+      // Reels/Shorts toggle rides the existing keyword pipeline — native
+      // already does a plain substring match against the full browser
+      // address-bar text for every blocked keyword, which is exactly what
+      // matching a URL path like "youtube.com/shorts" needs, so no native
+      // changes were required for this one.
+      if (state.reelsShortsBlocked) ...reelsShortsUrlPatterns,
     };
     final key = (effective.toList()..sort()).join(',');
     if (_lastSyncedKeywords == key) return;
     _lastSyncedKeywords = key;
     BlockerBridge.setBlockedKeywords(key.isEmpty ? [] : key.split(','));
+  }
+
+  static void _syncAdultDomains(AppStoreState state) {
+    final effective = state.adultContentBlocked ? adultDomains : const <String>[];
+    final key = (List.of(effective)..sort()).join(',');
+    if (_lastSyncedAdultDomains == key) return;
+    _lastSyncedAdultDomains = key;
+    BlockerBridge.setAdultDomains(key.isEmpty ? [] : key.split(','));
   }
 
   static void _syncBlockScreenStrings(I18nService i18n) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../models/app_models.dart';
 import '../../models/categories.dart';
@@ -79,7 +80,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       }
     }
 
-    final categoryTotals = todayRecord != null ? getCategoryBreakdown(todayRecord.appUsage, const []) : null;
+    final categoryTotals = todayRecord != null
+        ? getCategoryBreakdown(todayRecord.appUsage, const [], categoryOverrides: store.categoryOverrides)
+        : null;
     final categoryTotal = categoryTotals == null
         ? 0.0
         : categoryTotals.distraction + categoryTotals.productivity + categoryTotals.entertainment + categoryTotals.other;
@@ -95,7 +98,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
     final hourlyBars = List.generate(24, (h) {
       final usageForHour = todayRecord?.hourlyUsage?['$h'] ?? const <String, double>{};
-      final totals = getCategoryBreakdown(usageForHour, const []);
+      final totals = getCategoryBreakdown(usageForHour, const [], categoryOverrides: store.categoryOverrides);
       final segments = [
         for (final cat in _categoryOrder4)
           if (totals[cat] > 0) StackedSegment(key: cat.name, value: totals[cat], color: categoryMeta[cat]!.color),
@@ -114,7 +117,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         ? (todayRecord?.hourlyUsage?['$_selectedHour'] ?? const <String, double>{})
         : (todayRecord?.appUsage ?? const <String, double>{});
     final historyEntries = historySource.entries
-        .map((e) => (packageName: e.key, minutes: e.value, category: categorizeApp(e.key)))
+        .map((e) => (packageName: e.key, minutes: e.value, category: resolveAppCategory(e.key, store.categoryOverrides)))
         .toList()
       ..sort((a, b) => b.minutes.compareTo(a.minutes));
 
@@ -205,28 +208,42 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                         : Column(
                             children: [
                               for (final entry in historyEntries)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                  child: Row(
-                                    children: [
-                                      AppIcon(appName: resolveAppName(entry.packageName), icon: resolveAppIcon(entry.packageName), size: 30),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(resolveAppName(entry.packageName),
-                                                maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.foreground)),
-                                            Text(
-                                              '${categoryMeta[entry.category]!.emoji} ${tc(categoryMeta[entry.category]!.labelKey)}',
-                                              style: TextStyle(fontSize: 10, color: categoryMeta[entry.category]!.color),
-                                            ),
-                                          ],
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => context.push(
+                                    Uri(
+                                      path: '/analytics/category/${entry.packageName}',
+                                      queryParameters: {
+                                        'name': resolveAppName(entry.packageName),
+                                        if (resolveAppIcon(entry.packageName) != null) 'icon': resolveAppIcon(entry.packageName),
+                                      },
+                                    ).toString(),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    child: Row(
+                                      children: [
+                                        AppIcon(appName: resolveAppName(entry.packageName), icon: resolveAppIcon(entry.packageName), size: 30),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(resolveAppName(entry.packageName),
+                                                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.foreground)),
+                                              Text(
+                                                '${categoryMeta[entry.category]!.emoji} ${tc(categoryMeta[entry.category]!.labelKey)}',
+                                                style: TextStyle(fontSize: 10, color: categoryMeta[entry.category]!.color),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      Text(formatMinutes(entry.minutes),
-                                          style: TextStyle(fontSize: 12, fontFamily: 'monospace', color: colors.mutedForeground)),
-                                    ],
+                                        Text(formatMinutes(entry.minutes),
+                                            style: TextStyle(fontSize: 12, fontFamily: 'monospace', color: colors.mutedForeground)),
+                                        const SizedBox(width: 4),
+                                        Icon(Icons.chevron_right_rounded, size: 16, color: colors.mutedForeground),
+                                      ],
+                                    ),
                                   ),
                                 ),
                             ],

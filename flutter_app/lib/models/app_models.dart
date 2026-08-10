@@ -153,6 +153,11 @@ class LimiterProfile {
   final int? weeklyUsedMinutes;
   final int? weeklyResetAt;
   final IntervalConfig? intervalConfig;
+  /// Days the daily/hourly limit applies on — null/empty means every day
+  /// (matches the "Leave empty = every day" copy already in the profiles
+  /// namespace). Not used by weekly/interval (interval has its own
+  /// per-rule days via intervalConfig).
+  final List<DayOfWeek>? activeDays;
   final bool isActive;
   final int createdAt;
 
@@ -172,6 +177,7 @@ class LimiterProfile {
     this.weeklyUsedMinutes,
     this.weeklyResetAt,
     this.intervalConfig,
+    this.activeDays,
     required this.isActive,
     required this.createdAt,
   });
@@ -185,6 +191,7 @@ class LimiterProfile {
     int? dailyUsedMinutes,
     int? hourlyUsedMinutes,
     int? weeklyUsedMinutes,
+    List<DayOfWeek>? activeDays,
   }) =>
       LimiterProfile(
         id: id,
@@ -202,6 +209,7 @@ class LimiterProfile {
         weeklyUsedMinutes: weeklyUsedMinutes ?? this.weeklyUsedMinutes,
         weeklyResetAt: weeklyResetAt,
         intervalConfig: intervalConfig,
+        activeDays: activeDays ?? this.activeDays,
         isActive: isActive ?? this.isActive,
         createdAt: createdAt,
       );
@@ -222,6 +230,7 @@ class LimiterProfile {
         'weeklyUsedMinutes': weeklyUsedMinutes,
         'weeklyResetAt': weeklyResetAt,
         'intervalConfig': intervalConfig?.toJson(),
+        'activeDays': activeDays?.map((d) => d.name).toList(),
         'isActive': isActive,
         'createdAt': createdAt,
       };
@@ -247,6 +256,7 @@ class LimiterProfile {
         intervalConfig: json['intervalConfig'] != null
             ? IntervalConfig.fromJson(json['intervalConfig'] as Map<String, dynamic>)
             : null,
+        activeDays: (json['activeDays'] as List?)?.map((d) => DayOfWeek.values.byName(d as String)).toList(),
         isActive: json['isActive'] as bool? ?? false,
         createdAt: json['createdAt'] as int,
       );

@@ -12,6 +12,7 @@ class AppInput extends StatelessWidget {
   final bool obscureText;
   final TextInputType? keyboardType;
   final TextCapitalization textCapitalization;
+  final bool enabled;
 
   const AppInput({
     super.key,
@@ -21,6 +22,7 @@ class AppInput extends StatelessWidget {
     this.obscureText = false,
     this.keyboardType,
     this.textCapitalization = TextCapitalization.sentences,
+    this.enabled = true,
   });
 
   @override
@@ -31,6 +33,7 @@ class AppInput extends StatelessWidget {
       obscureText: obscureText,
       keyboardType: keyboardType,
       textCapitalization: textCapitalization,
+      enabled: enabled,
       style: TextStyle(color: colors.foreground, fontSize: 15),
       decoration: InputDecoration(
         hintText: placeholder,

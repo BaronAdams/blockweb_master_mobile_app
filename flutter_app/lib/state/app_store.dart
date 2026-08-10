@@ -29,6 +29,13 @@ class AppStoreState {
   final bool isOverlayPermissionGranted;
   final bool isDeviceAdminActive;
   final LanguagePreference languagePreference;
+  final bool adultContentBlocked;
+  final bool reelsShortsBlocked;
+  /// packageName -> SiteCategory.name, for apps whose category the user
+  /// picked manually from Analytics history (see
+  /// screens/tabs/category_picker_screen.dart) — takes priority over
+  /// categorizeApp()'s built-in heuristic (see utils/category_breakdown.dart).
+  final Map<String, String> categoryOverrides;
 
   const AppStoreState({
     this.blockedApps = const [],
@@ -48,6 +55,9 @@ class AppStoreState {
     this.isOverlayPermissionGranted = false,
     this.isDeviceAdminActive = false,
     this.languagePreference = LanguagePreference.device,
+    this.adultContentBlocked = false,
+    this.reelsShortsBlocked = false,
+    this.categoryOverrides = const {},
   });
 
   AppStoreState copyWith({
@@ -68,6 +78,9 @@ class AppStoreState {
     bool? isOverlayPermissionGranted,
     bool? isDeviceAdminActive,
     LanguagePreference? languagePreference,
+    bool? adultContentBlocked,
+    bool? reelsShortsBlocked,
+    Map<String, String>? categoryOverrides,
   }) {
     return AppStoreState(
       blockedApps: blockedApps ?? this.blockedApps,
@@ -87,6 +100,9 @@ class AppStoreState {
       isOverlayPermissionGranted: isOverlayPermissionGranted ?? this.isOverlayPermissionGranted,
       isDeviceAdminActive: isDeviceAdminActive ?? this.isDeviceAdminActive,
       languagePreference: languagePreference ?? this.languagePreference,
+      adultContentBlocked: adultContentBlocked ?? this.adultContentBlocked,
+      reelsShortsBlocked: reelsShortsBlocked ?? this.reelsShortsBlocked,
+      categoryOverrides: categoryOverrides ?? this.categoryOverrides,
     );
   }
 
@@ -105,6 +121,9 @@ class AppStoreState {
         'hasSeenPermissionsOnboarding': hasSeenPermissionsOnboarding,
         'hasCompletedOnboarding': hasCompletedOnboarding,
         'languagePreference': languagePreference.name,
+        'adultContentBlocked': adultContentBlocked,
+        'reelsShortsBlocked': reelsShortsBlocked,
+        'categoryOverrides': categoryOverrides,
         // Permission flags are intentionally NOT persisted — they're
         // refreshed from native on every app-state change (see the
         // hook that will call setAccessibilityEnabled etc. once the
@@ -145,6 +164,9 @@ class AppStoreState {
         languagePreference: json['languagePreference'] != null
             ? LanguagePreference.values.byName(json['languagePreference'] as String)
             : LanguagePreference.device,
+        adultContentBlocked: json['adultContentBlocked'] as bool? ?? false,
+        reelsShortsBlocked: json['reelsShortsBlocked'] as bool? ?? false,
+        categoryOverrides: (json['categoryOverrides'] as Map?)?.cast<String, String>() ?? const {},
       );
 }
 
@@ -463,6 +485,15 @@ class AppStoreNotifier extends StateNotifier<AppStoreState> {
   void setDeviceAdminActive(bool active) => _set((s) => s.copyWith(isDeviceAdminActive: active));
 
   void setLanguagePreference(LanguagePreference pref) => _set((s) => s.copyWith(languagePreference: pref));
+
+  void setAdultContentBlocked(bool blocked) => _set((s) => s.copyWith(adultContentBlocked: blocked));
+  void setReelsShortsBlocked(bool blocked) => _set((s) => s.copyWith(reelsShortsBlocked: blocked));
+
+  /// User-picked category override for an app, from Analytics history's
+  /// category picker — takes priority over categorizeApp()'s heuristic.
+  void setCategoryOverride(String packageName, String categoryName) => _set(
+        (s) => s.copyWith(categoryOverrides: {...s.categoryOverrides, packageName: categoryName}),
+      );
 }
 
 final appStoreProvider = StateNotifierProvider<AppStoreNotifier, AppStoreState>(

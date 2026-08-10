@@ -45,10 +45,12 @@ ProfileBlockTargets computeProfileBlockTargets(AppStoreState state, {DateTime? n
 bool _isProfileBlocking(LimiterProfile profile, DateTime now) {
   switch (profile.type) {
     case LimiterType.daily:
+      if (!_isActiveToday(profile, now)) return false;
       final limit = profile.dailyLimitMinutes;
       if (limit == null || limit <= 0) return false;
       return (profile.dailyUsedMinutes ?? 0) >= limit;
     case LimiterType.hourly:
+      if (!_isActiveToday(profile, now)) return false;
       final limit = profile.hourlyLimitMinutes;
       if (limit == null || limit <= 0) return false;
       return (profile.hourlyUsedMinutes ?? 0) >= limit;
@@ -62,6 +64,14 @@ bool _isProfileBlocking(LimiterProfile profile, DateTime now) {
       if (!cfg.days.contains(DayOfWeek.values[now.weekday - 1])) return false;
       return _isWithinTimeRange(now, cfg.startTime, cfg.endTime);
   }
+}
+
+/// null/empty activeDays means "every day" (matches the "Leave empty = every
+/// day" copy shown next to the day picker on daily/hourly profiles).
+bool _isActiveToday(LimiterProfile profile, DateTime now) {
+  final days = profile.activeDays;
+  if (days == null || days.isEmpty) return true;
+  return days.contains(DayOfWeek.values[now.weekday - 1]);
 }
 
 /// Minutes since midnight for a "HH:mm" string — returns null for anything

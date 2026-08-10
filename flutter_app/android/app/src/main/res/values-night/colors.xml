@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark-mode override of values/colors.xml's launch_background — see
+         drawable/launch_background.xml. Android resolves this automatically
+         from the system's dark-mode setting before Flutter starts. -->
+    <color name="launch_background">#000000</color>
+</resources>

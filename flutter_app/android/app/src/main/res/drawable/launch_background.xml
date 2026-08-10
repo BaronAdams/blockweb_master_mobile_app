@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Native pre-Flutter-frame splash: white background + centered shield
+<!-- Native pre-Flutter-frame splash: themed background + centered shield
      mark, matching the RN app's AppSplashScreen (components/AppSplashScreen.tsx)
-     so there's no blank flash before splash_screen.dart takes over. -->
+     so there's no blank flash before splash_screen.dart takes over.
+     @color/launch_background resolves to white (values/colors.xml) or
+     black (values-night/colors.xml) from the system's own dark-mode
+     setting — was hardcoded to @android:color/white, which is why this
+     always flashed white first even on a dark-system device, only
+     correcting itself once Flutter booted far enough to read the theme
+     from Dart. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+    <item android:drawable="@color/launch_background" />
     <item>
         <bitmap android:gravity="center" android:src="@mipmap/ic_launcher_foreground" />
     </item>

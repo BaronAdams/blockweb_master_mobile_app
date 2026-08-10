@@ -43,15 +43,20 @@ class BlocklistEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppTheme.colorsOf(context);
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 32),
+      // Was 32 vertical + a 28px icon — much taller than it needed to be.
+      // width: double.infinity so this matches the AddRow input above it
+      // instead of shrinking to the label text's own width (Column's
+      // default crossAxisAlignment is center, not stretch).
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
         border: Border.all(color: colors.border, style: BorderStyle.solid),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 28, color: colors.mutedForeground),
-          const SizedBox(height: 8),
+          Icon(icon, size: 20, color: colors.mutedForeground),
+          const SizedBox(height: 6),
           Text(label, style: TextStyle(fontSize: 12, color: colors.mutedForeground)),
         ],
       ),
