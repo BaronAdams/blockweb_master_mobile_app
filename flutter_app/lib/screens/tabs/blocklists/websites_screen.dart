@@ -13,6 +13,20 @@ import '../../../widgets/entry_icon.dart';
 import '../../../widgets/sub_screen_header.dart';
 import '../../../widgets/toast.dart';
 
+/// Strips a scheme and any path/query, so pasting a full URL (e.g.
+/// "https://www.youtube.com/watch?v=x") blocks the same bare host
+/// ("youtube.com") that BrowserUrlWatcher.kt's domainMatches() compares
+/// against — without this, a pasted full URL would never match.
+String _normalizeDomain(String raw) {
+  var domain = raw.trim().toLowerCase();
+  domain = domain.replaceFirst(RegExp(r'^[a-z]+://'), '');
+  domain = domain.split('/').first;
+  domain = domain.split('?').first;
+  domain = domain.split(':').first;
+  if (domain.startsWith('www.')) domain = domain.substring(4);
+  return domain;
+}
+
 /// Port of app/(tabs)/blocklists/websites.tsx.
 class WebsitesScreen extends ConsumerStatefulWidget {
   const WebsitesScreen({super.key});
@@ -44,7 +58,7 @@ class _WebsitesScreenState extends ConsumerState<WebsitesScreen> {
 
     void onAdd() {
       if (atLimit) return;
-      final trimmed = _input.text.trim().toLowerCase();
+      final trimmed = _normalizeDomain(_input.text);
       if (trimmed.isEmpty) return;
       final now = DateTime.now().millisecondsSinceEpoch;
       notifier.addBlockedWebsite(BlockedWebsite(id: '$now', domain: trimmed, isBlocked: true, addedAt: now));

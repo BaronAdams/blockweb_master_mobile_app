@@ -21,7 +21,7 @@ import '../screens/tabs/strict_mode_screen.dart';
 import '../screens/profiles/choose_type_screen.dart';
 import '../screens/profiles/create_profile_screen.dart';
 import '../screens/profiles/profile_detail_screen.dart';
-import '../screens/profiles/profiles_list_screen.dart';
+import '../state/app_settings.dart';
 import '../state/app_store.dart';
 import '../state/session_sync.dart';
 import '../theme/app_theme.dart';
@@ -132,7 +132,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/blocklists/keywords', builder: (context, state) => const KeywordsScreen()),
           GoRoute(path: '/blocklists/websites', builder: (context, state) => const WebsitesScreen()),
           GoRoute(path: '/blocklists/whitelist', builder: (context, state) => const WhitelistScreen()),
-          GoRoute(path: '/profiles', builder: (context, state) => const ProfilesListScreen()),
           GoRoute(path: '/strictmode', builder: (context, state) => const StrictModeScreen()),
           GoRoute(path: '/account', builder: (context, state) => const AccountScreen()),
         ],
@@ -141,27 +140,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class _TabsShell extends StatelessWidget {
+class _TabsShell extends ConsumerWidget {
   final Widget child;
   const _TabsShell({required this.child});
 
-  static const _tabs = [
-    (path: '/', icon: Icons.bar_chart_rounded, label: 'Analytics'),
-    (path: '/blocklists', icon: Icons.block_rounded, label: 'Block Lists'),
-    (path: '/profiles', icon: Icons.person_outline_rounded, label: 'Profiles'),
-    (path: '/strictmode', icon: Icons.shield_outlined, label: 'Strict Mode'),
-    (path: '/account', icon: Icons.settings_outlined, label: 'Account'),
-  ];
-
-  int _indexFor(String location) {
-    final index = _tabs.indexWhere((t) => t.path == location || (t.path != '/' && location.startsWith(t.path)));
+  int _indexFor(List<({String path, IconData icon, String label})> tabs, String location) {
+    final index = tabs.indexWhere((t) => t.path == location || (t.path != '/' && location.startsWith(t.path)));
     return index < 0 ? 0 : index;
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = AppTheme.colorsOf(context);
     final location = GoRouterState.of(context).uri.toString();
+    final i18n = ref.watch(i18nProvider);
+    // Reuses each tab's own screen-title string (already localized in all
+    // 14 languages) instead of adding brand-new tab-bar-only keys.
+    final tabs = [
+      (path: '/', icon: Icons.bar_chart_rounded, label: i18n.t('analytics', 'title')),
+      // Block Lists now also hosts the scheduled profiles section (see
+      // BlocklistsIndexScreen) — Profiles no longer has its own tab.
+      (path: '/blocklists', icon: Icons.block_rounded, label: i18n.t('blockLists', 'title')),
+      (path: '/strictmode', icon: Icons.shield_outlined, label: i18n.t('strictMode', 'title')),
+      (path: '/account', icon: Icons.settings_outlined, label: i18n.t('account', 'title')),
+    ];
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -182,12 +184,12 @@ class _TabsShell extends StatelessWidget {
           ),
         ),
         child: NavigationBar(
-          selectedIndex: _indexFor(location),
+          selectedIndex: _indexFor(tabs, location),
           backgroundColor: colors.card,
           indicatorColor: colors.primary.withOpacity(0.15),
-          onDestinationSelected: (i) => context.go(_tabs[i].path),
+          onDestinationSelected: (i) => context.go(tabs[i].path),
           destinations: [
-            for (final tab in _tabs)
+            for (final tab in tabs)
               NavigationDestination(
                 icon: Icon(tab.icon, color: colors.mutedForeground),
                 selectedIcon: Icon(tab.icon, color: colors.primary),

@@ -264,6 +264,73 @@ class AppStoreNotifier extends StateNotifier<AppStoreState> {
         limiterProfiles: s.limiterProfiles.map((p) => p.id == id ? p.copyWith(isActive: !p.isActive) : p).toList(),
       ));
 
+  /// Recomputes each active daily/hourly/weekly profile's usedMinutes from
+  /// real tracked usage (state.analytics, kept fresh by
+  /// native/app_monitor.dart's periodic sync) instead of leaving it at
+  /// whatever it was set to on creation — nothing else in the app ever
+  /// updated these fields, so the profile cards' progress bars never
+  /// actually moved. Bypasses the strict-mode edit guard on updateProfile
+  /// on purpose: this is automatic bookkeeping, not a user-initiated edit
+  /// strict mode is meant to block.
+  void syncProfileUsage() {
+    if (state.limiterProfiles.isEmpty) return;
+    final today = _todayKey();
+    final currentHour = DateTime.now().hour.toString();
+    DailyAnalytics? todayRecord;
+    for (final a in state.analytics) {
+      if (a.date == today) {
+        todayRecord = a;
+        break;
+      }
+    }
+
+    double sumApps(Map<String, double>? usage, List<String> apps) {
+      if (usage == null) return 0;
+      var total = 0.0;
+      for (final pkg in apps) {
+        total += usage[pkg] ?? 0;
+      }
+      return total;
+    }
+
+    double sumLast7Days(List<String> apps) {
+      final cutoff = DateTime.now().subtract(const Duration(days: 6));
+      final cutoffDay = DateTime(cutoff.year, cutoff.month, cutoff.day);
+      var total = 0.0;
+      for (final a in state.analytics) {
+        final d = DateTime.tryParse(a.date);
+        if (d == null || d.isBefore(cutoffDay)) continue;
+        total += sumApps(a.appUsage, apps);
+      }
+      return total;
+    }
+
+    var changed = false;
+    final updated = state.limiterProfiles.map((p) {
+      switch (p.type) {
+        case LimiterType.daily:
+          final used = sumApps(todayRecord?.appUsage, p.apps).round();
+          if (used == (p.dailyUsedMinutes ?? 0)) return p;
+          changed = true;
+          return p.copyWith(dailyUsedMinutes: used);
+        case LimiterType.hourly:
+          final used = sumApps(todayRecord?.hourlyUsage?[currentHour], p.apps).round();
+          if (used == (p.hourlyUsedMinutes ?? 0)) return p;
+          changed = true;
+          return p.copyWith(hourlyUsedMinutes: used);
+        case LimiterType.weekly:
+          final used = sumLast7Days(p.apps).round();
+          if (used == (p.weeklyUsedMinutes ?? 0)) return p;
+          changed = true;
+          return p.copyWith(weeklyUsedMinutes: used);
+        case LimiterType.interval:
+          return p;
+      }
+    }).toList();
+
+    if (changed) _set((s) => s.copyWith(limiterProfiles: updated));
+  }
+
   // ---- Analytics -------------------------------------------------------
 
   static String _todayKey() => DateTime.now().toIso8601String().split('T')[0];

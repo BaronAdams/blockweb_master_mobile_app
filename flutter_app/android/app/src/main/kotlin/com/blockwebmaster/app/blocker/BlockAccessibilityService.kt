@@ -2,6 +2,8 @@ package com.blockwebmaster.app.blocker
 
 import android.accessibilityservice.AccessibilityService
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import java.text.SimpleDateFormat
@@ -30,9 +32,34 @@ class BlockAccessibilityService : AccessibilityService() {
 
   private lateinit var overlay: BlockOverlay
 
+  // Without a periodic flush, dwell time was only ever persisted at the
+  // NEXT app switch (recordElapsed is only called from
+  // handleWindowStateChanged) — so staying in one app (e.g. scrolling a
+  // single feed) for longer than that switch never happened meant that
+  // session's whole duration was recorded as zero, and MAX_SESSION_MS
+  // capped/discarded whatever finally got measured anyway. Ticking every
+  // HEARTBEAT_INTERVAL_MS flushes small, accurate chunks continuously
+  // instead, the same way the RN app's native module should have but
+  // didn't either.
+  private val heartbeatHandler = Handler(Looper.getMainLooper())
+  private val heartbeatRunnable = object : Runnable {
+    override fun run() {
+      val now = SystemClock.elapsedRealtime()
+      recordElapsed(now)
+      lastEventTimeMs = now
+      heartbeatHandler.postDelayed(this, HEARTBEAT_INTERVAL_MS)
+    }
+  }
+
   override fun onServiceConnected() {
     super.onServiceConnected()
     overlay = BlockOverlay(this)
+    heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS)
+  }
+
+  override fun onDestroy() {
+    heartbeatHandler.removeCallbacks(heartbeatRunnable)
+    super.onDestroy()
   }
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -101,9 +128,14 @@ class BlockAccessibilityService : AccessibilityService() {
     // the user opened them (see TrackablePackages for why).
     if (!TrackablePackages.isTrackable(applicationContext, pkg)) return
     if (lastEventTimeMs <= 0L) return
-    val elapsedMs = now - lastEventTimeMs
-    // Guard against device sleep / service restarts producing bogus jumps.
-    if (elapsedMs <= 0L || elapsedMs > MAX_SESSION_MS) return
+    // Capped rather than discarded: a session longer than MAX_SESSION_MS
+    // (e.g. the device slept for hours with this app foregrounded) still
+    // credits a sane amount instead of recording zero for the whole thing.
+    // With the heartbeat now flushing every HEARTBEAT_INTERVAL_MS, this
+    // cap is mostly a safety net for sleep/service-restart gaps rather
+    // than the routine path it used to be.
+    val elapsedMs = (now - lastEventTimeMs).coerceIn(0L, MAX_SESSION_MS)
+    if (elapsedMs <= 0L) return
     addUsage(pkg, elapsedMs / 60000.0)
   }
 
@@ -188,6 +220,7 @@ class BlockAccessibilityService : AccessibilityService() {
     const val HOURLY_PREFIX = "usage_hourly:"
     private const val MAX_SESSION_MS = 20 * 60 * 1000L
     private const val URL_CHECK_THROTTLE_MS = 800L
+    private const val HEARTBEAT_INTERVAL_MS = 60 * 1000L
 
     fun dateKey(date: Date): String =
       SimpleDateFormat("yyyy-MM-dd", Locale.US).format(date)

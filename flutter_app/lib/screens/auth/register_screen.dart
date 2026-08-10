@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_input.dart';
 import '../../widgets/app_logo.dart';
+import '../../widgets/social_login_buttons.dart';
 
 /// Port of app/(auth)/register.tsx.
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -120,6 +121,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ],
                 const SizedBox(height: 20),
                 AppButton(label: t('register'), loading: _loading, onPressed: () => _submit(t)),
+                const SizedBox(height: 24),
+                const SocialLoginButtons(),
                 const SizedBox(height: 24),
                 Center(
                   child: TextButton(

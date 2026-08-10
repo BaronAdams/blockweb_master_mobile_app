@@ -7,7 +7,9 @@ import '../../../state/app_settings.dart';
 import '../../../state/app_store.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/accessibility_warning_banner.dart';
+import '../../../widgets/app_card.dart';
 import '../../../widgets/app_header.dart';
+import '../../../widgets/profile_list_section.dart';
 
 class _MenuItem {
   final IconData icon;
@@ -85,50 +87,59 @@ class BlocklistsIndexScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   AccessibilityWarningBanner(active: store.blockedApps.isNotEmpty),
                   Expanded(
-                    child: ListView.separated(
-                      itemCount: items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final item = items[index];
-                        return InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => context.push(item.route),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: colors.card,
-                              border: Border.all(color: colors.border),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: item.color.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(10),
+                    child: ListView(
+                      padding: const EdgeInsets.only(bottom: 40),
+                      children: [
+                        for (final item in items) ...[
+                          InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => context.push(item.route),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: colors.card,
+                                border: Border.all(color: colors.border),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: item.color.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Icon(item.icon, size: 20, color: item.color),
                                   ),
-                                  alignment: Alignment.center,
-                                  child: Icon(item.icon, size: 20, color: item.color),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Text(item.label,
-                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.foreground)),
-                                ),
-                                if (item.locked)
-                                  Icon(Icons.lock_outline_rounded, size: 16, color: colors.mutedForeground)
-                                else
-                                  Text('${item.count}',
-                                      style: TextStyle(fontSize: 13, fontFamily: 'monospace', color: colors.mutedForeground)),
-                                const SizedBox(width: 6),
-                                Icon(Icons.chevron_right_rounded, size: 18, color: colors.mutedForeground),
-                              ],
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(item.label,
+                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.foreground)),
+                                  ),
+                                  if (item.locked)
+                                    Icon(Icons.lock_outline_rounded, size: 16, color: colors.mutedForeground)
+                                  else
+                                    Text('${item.count}',
+                                        style: TextStyle(fontSize: 13, fontFamily: 'monospace', color: colors.mutedForeground)),
+                                  const SizedBox(width: 6),
+                                  Icon(Icons.chevron_right_rounded, size: 18, color: colors.mutedForeground),
+                                ],
+                              ),
                             ),
                           ),
-                        );
-                      },
+                          const SizedBox(height: 10),
+                        ],
+                        // Scheduled block profiles (daily/hourly/weekly/interval
+                        // limits) right after the quick-block menu — was its
+                        // own bottom-nav tab, now lives in the same place as
+                        // the rest of "what's blocked and how".
+                        const SizedBox(height: 14),
+                        const AppSeparator(),
+                        const SizedBox(height: 14),
+                        const ProfileListSection(),
+                      ],
                     ),
                   ),
                 ],

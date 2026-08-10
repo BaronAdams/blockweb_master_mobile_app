@@ -85,11 +85,18 @@ class _StackedBarPainter extends CustomPainter {
 
   static const double _padding = 4;
   static const double _labelSpace = 14;
+  /// Fixed reference instead of the tallest bar in the data set — this
+  /// chart is used for the hour-by-hour breakdown, so a bar's fill should
+  /// mean "how much of that 60-minute hour was used," not "relative to
+  /// today's busiest hour." With a dynamic max, the very first hour with
+  /// any usage always rendered as 100% full (it was both the numerator and
+  /// the max), even after just a couple of minutes.
+  static const double _fullHourMinutes = 60;
 
   @override
   void paint(Canvas canvas, Size size) {
     final totals = data.map((d) => d.segments.fold(0.0, (sum, s) => sum + s.value)).toList();
-    final maxTotal = totals.isEmpty ? 0.0 : totals.reduce((a, b) => a > b ? a : b);
+    final maxTotal = _fullHourMinutes;
 
     final innerWidth = size.width - _padding * 2;
     final chartHeight = size.height - _labelSpace;

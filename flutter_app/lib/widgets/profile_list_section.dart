@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../models/app_models.dart';
-import '../../models/profile_types.dart';
-import '../../state/app_settings.dart';
-import '../../state/app_store.dart';
-import '../../theme/app_theme.dart';
-import '../../utils/format.dart';
-import '../../widgets/app_header.dart';
-import '../../widgets/progress_bar.dart';
+import '../models/app_models.dart';
+import '../models/profile_types.dart';
+import '../state/app_settings.dart';
+import '../state/app_store.dart';
+import '../theme/app_theme.dart';
+import '../utils/format.dart';
+import 'progress_bar.dart';
 
-/// Port of app/(tabs)/profiles.tsx.
-class ProfilesListScreen extends ConsumerWidget {
-  const ProfilesListScreen({super.key});
+/// Port of app/(tabs)/profiles.tsx's content — no longer its own screen
+/// (see BlocklistsIndexScreen: quick blocklists + scheduled profiles now
+/// live in the same tab, profiles right after the quick-block menu), but
+/// still the same "list of scheduled block profiles" section.
+class ProfileListSection extends ConsumerWidget {
+  const ProfileListSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,64 +24,45 @@ class ProfilesListScreen extends ConsumerWidget {
     String t(String key, [Map<String, dynamic>? vars]) => i18n.t('profiles', key, vars: vars);
     final profiles = ref.watch(appStoreProvider).limiterProfiles;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: Column(
-        children: [
-          const AppHeader(),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(t('title'), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: colors.foreground)),
-                      OutlinedButton(
-                        onPressed: () => context.push('/profiles/create'),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: colors.border),
-                          foregroundColor: colors.foreground,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: Text(t('create')),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: profiles.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 40),
-                            child: Text(t('noProfileDesc'),
-                                textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: colors.mutedForeground)),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.only(bottom: 40),
-                            itemCount: profiles.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final profile = profiles[index];
-                              return _ProfileCard(profile: profile, onTap: () => context.push('/profiles/${profile.id}'));
-                            },
-                          ),
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(t('title'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: colors.foreground)),
+            OutlinedButton(
+              onPressed: () => context.push('/profiles/create'),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: colors.border),
+                foregroundColor: colors.foreground,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
+              child: Text(t('create')),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (profiles.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Text(t('noProfileDesc'),
+                textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: colors.mutedForeground)),
+          )
+        else
+          for (final profile in profiles) ...[
+            ProfileCard(profile: profile, onTap: () => context.push('/profiles/${profile.id}')),
+            const SizedBox(height: 12),
+          ],
+      ],
     );
   }
 }
 
-class _ProfileCard extends ConsumerWidget {
+class ProfileCard extends ConsumerWidget {
   final LimiterProfile profile;
   final VoidCallback onTap;
-  const _ProfileCard({required this.profile, required this.onTap});
+  const ProfileCard({super.key, required this.profile, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
