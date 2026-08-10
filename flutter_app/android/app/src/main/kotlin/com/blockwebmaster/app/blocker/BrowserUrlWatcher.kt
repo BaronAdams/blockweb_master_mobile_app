@@ -99,9 +99,13 @@ object BrowserUrlWatcher {
     return host.lowercase()
   }
 
-  /** A blocked domain matches itself and any subdomain of it. */
+  /** A blocked domain matches itself and any subdomain of it. Runs the
+   *  blocked-domain value through the same scheme/path stripping as
+   *  extractHost() — defense-in-depth against a stored value that still
+   *  has "https://" or a trailing path (e.g. from before the Dart-side
+   *  input was normalized, or a future add point that forgets to). */
   fun domainMatches(host: String, blockedDomain: String): Boolean {
-    val normalized = blockedDomain.trim().removePrefix("www.").lowercase()
+    val normalized = extractHost(blockedDomain)
     if (normalized.isEmpty()) return false
     return host == normalized || host.endsWith(".$normalized")
   }

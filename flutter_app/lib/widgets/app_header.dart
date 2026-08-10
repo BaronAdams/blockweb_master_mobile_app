@@ -13,7 +13,9 @@ class AppHeader extends StatelessWidget {
     return Container(
       padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 12),
       decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.border))),
-      child: const Row(children: [AppLogo(size: 36)]),
+      // 44 matches AppLogo's own default (and AppHeader.tsx, which doesn't
+      // override it) — was 36, noticeably smaller than the RN header.
+      child: const Row(children: [AppLogo(size: 44)]),
     );
   }
 }

@@ -170,7 +170,9 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
       while (context.canPop()) {
         context.pop();
       }
-      context.go('/profiles');
+      // Profiles now live inside the Block Lists tab (see
+      // BlocklistsIndexScreen) instead of their own route/tab.
+      context.go('/blocklists');
     }
 
     return Scaffold(

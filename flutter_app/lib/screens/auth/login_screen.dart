@@ -8,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_input.dart';
 import '../../widgets/app_logo.dart';
+import '../../widgets/social_login_buttons.dart';
 
 /// Port of app/(auth)/login.tsx.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -116,6 +117,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
                 const SizedBox(height: 20),
                 AppButton(label: t('signIn'), loading: _loading, onPressed: () => _submit(t)),
+                const SizedBox(height: 24),
+                const SocialLoginButtons(),
                 const SizedBox(height: 24),
                 Center(
                   child: TextButton(
