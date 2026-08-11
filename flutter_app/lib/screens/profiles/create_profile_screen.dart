@@ -15,6 +15,7 @@ import '../../widgets/app_input.dart';
 import '../../widgets/blocklist_ui.dart';
 import '../../widgets/section_title.dart';
 import '../../widgets/sub_screen_header.dart';
+import '../../widgets/unit_picker.dart';
 
 const List<(DayOfWeek, String)> _days = [
   (DayOfWeek.mon, 'Mon'),
@@ -45,9 +46,14 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   final _name = TextEditingController();
   final _websiteInput = TextEditingController();
   final _keywordInput = TextEditingController();
-  final _limitMinutes = TextEditingController(text: '60');
-  final _startTime = TextEditingController(text: '09:00');
-  final _endTime = TextEditingController(text: '17:30');
+  // Hourly has no hours component (max 59 minutes) — mirrors the chrome
+  // extension reference's maxHours=0 pattern for that type.
+  int _limitHours = 1;
+  int _limitMinutesVal = 0;
+  int _startHour = 9;
+  int _startMinute = 0;
+  int _endHour = 17;
+  int _endMinute = 30;
 
   final List<String> _websites = [];
   final List<String> _keywords = [];
@@ -64,6 +70,10 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     // Create button's enabled state stays live, matching the RN screen's
     // `useState` reactivity.
     _name.addListener(_onNameChanged);
+    if (_type == LimiterType.hourly) {
+      _limitHours = 0;
+      _limitMinutesVal = 30;
+    }
   }
 
   void _onNameChanged() => setState(() {});
@@ -73,9 +83,6 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     _name.dispose();
     _websiteInput.dispose();
     _keywordInput.dispose();
-    _limitMinutes.dispose();
-    _startTime.dispose();
-    _endTime.dispose();
     super.dispose();
   }
 
@@ -146,7 +153,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     void onSubmit() {
       if (!canSubmit) return;
       final now = DateTime.now().millisecondsSinceEpoch;
-      final limitMinutes = int.tryParse(_limitMinutes.text) ?? (_type == LimiterType.hourly ? 30 : 60);
+      final limitMinutes = _type == LimiterType.hourly ? _limitMinutesVal : (_limitHours * 60 + _limitMinutesVal);
 
       notifier.addProfile(LimiterProfile(
         id: '$now',
@@ -172,7 +179,11 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
             ? _selectedDays
             : null,
         intervalConfig: _type == LimiterType.interval
-            ? IntervalConfig(startTime: _startTime.text, endTime: _endTime.text, days: _selectedDays)
+            ? IntervalConfig(
+                startTime: '${_startHour.toString().padLeft(2, '0')}:${_startMinute.toString().padLeft(2, '0')}',
+                endTime: '${_endHour.toString().padLeft(2, '0')}:${_endMinute.toString().padLeft(2, '0')}',
+                days: _selectedDays,
+              )
             : null,
       ));
 
@@ -322,12 +333,28 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                 if (_type == LimiterType.daily || _type == LimiterType.hourly || _type == LimiterType.weekly) ...[
                   const SizedBox(height: 12),
                   SectionTitle(t(_limitKeyByType[_type]!)),
-                  AppInput(
-                    icon: Icons.timer_outlined,
-                    placeholder: '60',
-                    controller: _limitMinutes,
-                    keyboardType: TextInputType.number,
-                    textCapitalization: TextCapitalization.none,
+                  Row(
+                    children: [
+                      if (_type != LimiterType.hourly) ...[
+                        Expanded(
+                          child: UnitPicker(
+                            value: _limitHours,
+                            max: _type == LimiterType.weekly ? 167 : 23,
+                            suffix: tc('hourShrt'),
+                            onChanged: (v) => setState(() => _limitHours = v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: UnitPicker(
+                          value: _limitMinutesVal,
+                          max: 59,
+                          suffix: tc('minuteShrt'),
+                          onChanged: (v) => setState(() => _limitMinutesVal = v),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
                 if (_type == LimiterType.daily || _type == LimiterType.hourly) ...[
@@ -353,7 +380,13 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             SectionTitle(t('timeRanges')),
-                            AppInput(icon: Icons.schedule_outlined, placeholder: '09:00', controller: _startTime, textCapitalization: TextCapitalization.none),
+                            Row(
+                              children: [
+                                Expanded(child: UnitPicker(value: _startHour, max: 23, suffix: tc('hourShrt'), onChanged: (v) => setState(() => _startHour = v))),
+                                const SizedBox(width: 6),
+                                Expanded(child: UnitPicker(value: _startMinute, max: 59, suffix: tc('minuteShrt'), onChanged: (v) => setState(() => _startMinute = v))),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -363,7 +396,13 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 18),
-                            AppInput(icon: Icons.schedule_outlined, placeholder: '17:30', controller: _endTime, textCapitalization: TextCapitalization.none),
+                            Row(
+                              children: [
+                                Expanded(child: UnitPicker(value: _endHour, max: 23, suffix: tc('hourShrt'), onChanged: (v) => setState(() => _endHour = v))),
+                                const SizedBox(width: 6),
+                                Expanded(child: UnitPicker(value: _endMinute, max: 59, suffix: tc('minuteShrt'), onChanged: (v) => setState(() => _endMinute = v))),
+                              ],
+                            ),
                           ],
                         ),
                       ),

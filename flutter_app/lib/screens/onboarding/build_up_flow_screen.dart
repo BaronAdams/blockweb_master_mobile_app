@@ -6,13 +6,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../state/app_settings.dart';
+import '../../state/installed_apps.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_icon.dart';
 import '../../widgets/choice_card.dart';
 
 enum _Step { welcome, stat, q1, q2, q3, q4, building, reveal }
 
 const _progressSteps = [_Step.stat, _Step.q1, _Step.q2, _Step.q3, _Step.q4];
 const _timeRangeHours = {'under1h': 0.5, 'oneToThree': 2.0, 'threeToFive': 4.0, 'over5h': 6.0};
+
+// Real package names for the q1 "which app steals your time" options, so
+// their real installed-device icon (see installedAppsProvider/AppIcon) can
+// be shown next to the label instead of just an emoji — falls back to
+// AppIcon's own letter-avatar when the app isn't actually installed.
+const _q1PackageNames = {
+  'Instagram': 'com.instagram.android',
+  'TikTok': 'com.zhiliaoapp.musically',
+  'YouTube': 'com.google.android.youtube',
+  'Facebook': 'com.facebook.katana',
+};
 
 /// Port of components/onboarding/BuildUpFlow.tsx — the first-launch
 /// personalization "build up" flow. Reanimated spring/easing curves are
@@ -52,6 +65,23 @@ class _BuildUpFlowScreenState extends ConsumerState<BuildUpFlowScreen> {
     String t(String key, [Map<String, dynamic>? vars]) => i18n.t('onboarding', key, vars: vars);
     String tc(String key) => i18n.t('common', key);
 
+    final installedApps = ref.watch(installedAppsProvider).asData?.value ?? const [];
+    // Real device icon when the app is actually installed, else AppIcon's
+    // own letter-avatar fallback — either way every mapped option gets a
+    // leading icon slot instead of only appearing for whatever happens to
+    // be installed on the current device.
+    String? iconForPackage(String pkg) {
+      for (final app in installedApps) {
+        if (app.packageName == pkg) return app.icon;
+      }
+      return null;
+    }
+
+    final q1Logos = <String, Widget>{
+      for (final entry in _q1PackageNames.entries)
+        entry.key: AppIcon(appName: entry.key, icon: iconForPackage(entry.value), size: 28),
+    };
+
     final progressIndex = _progressSteps.indexOf(_step);
 
     Widget content;
@@ -63,8 +93,15 @@ class _BuildUpFlowScreenState extends ConsumerState<BuildUpFlowScreen> {
       case _Step.q1:
         content = _QuestionStep(
           title: t('q1Title'),
-          options: [('Instagram', t('q1Instagram')), ('TikTok', t('q1TikTok')), ('YouTube', t('q1YouTube')), ('other', t('q1Other'))],
+          options: [
+            ('Instagram', t('q1Instagram')),
+            ('TikTok', t('q1TikTok')),
+            ('Facebook', t('q1Facebook')),
+            ('YouTube', t('q1YouTube')),
+            ('other', t('q1Other')),
+          ],
           selected: _app,
+          leadingByValue: q1Logos,
           onSelect: (v) {
             setState(() => _app = v);
             _selectAndAdvance(_Step.q2);
@@ -284,7 +321,11 @@ class _QuestionStep extends StatelessWidget {
   final List<(String, String)> options;
   final String? selected;
   final ValueChanged<String> onSelect;
-  const _QuestionStep({required this.title, required this.options, required this.selected, required this.onSelect});
+  // Only set for q1 (which app steals your time) — an option value not
+  // present in this map (e.g. "other") gets no leading icon at all; every
+  // other question step just omits this parameter entirely.
+  final Map<String, Widget>? leadingByValue;
+  const _QuestionStep({required this.title, required this.options, required this.selected, required this.onSelect, this.leadingByValue});
 
   @override
   Widget build(BuildContext context) {
@@ -297,7 +338,12 @@ class _QuestionStep extends StatelessWidget {
           Text(title, style: TextStyle(fontSize: 22, height: 1.3, fontWeight: FontWeight.w600, color: colors.foreground)),
           const SizedBox(height: 24),
           for (final (value, label) in options) ...[
-            ChoiceCard(label: label, selected: selected == value, onPressed: () => onSelect(value)),
+            ChoiceCard(
+              label: label,
+              selected: selected == value,
+              onPressed: () => onSelect(value),
+              leading: leadingByValue?[value],
+            ),
             const SizedBox(height: 10),
           ],
         ],

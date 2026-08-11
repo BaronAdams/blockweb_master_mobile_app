@@ -147,9 +147,22 @@ class BlockOverlay(private val service: AccessibilityService) {
   private fun handleAction(uri: Uri?): Boolean {
     return when (uri?.host) {
       "quit" -> {
+        // Captured before dismiss() clears them — dismiss() only removes the
+        // overlay window, it never navigates the page/app underneath, so the
+        // blocked site/keyword match is still loaded in the browser's tab.
+        // For a browser-based match, going straight Home would leave that
+        // exact tab sitting there for the next Recents-return or back-nav to
+        // reveal — so redirect the tab itself to a safe page first. Whole-app
+        // blocks (no tab underneath to redirect) still just go Home.
+        val browserPackage = shownForPackage
+        val reason = lastReasonKey
         dismiss()
-        @Suppress("DEPRECATION")
-        service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+        if ((reason == "site" || reason == "keyword" || reason == "adult") && browserPackage != null) {
+          redirectBrowserToSafeTab(browserPackage)
+        } else {
+          @Suppress("DEPRECATION")
+          service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+        }
         true
       }
       "manage" -> {
@@ -167,6 +180,26 @@ class BlockOverlay(private val service: AccessibilityService) {
       launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       launchIntent?.let { service.startActivity(it) }
     } catch (e: Exception) {}
+  }
+
+  /** Sends the blocked browser a fresh ACTION_VIEW for a safe URL — on every
+   *  mainstream Android browser (Chrome, Firefox, Samsung Internet…),
+   *  receiving a VIEW intent from another app while already running opens it
+   *  in a *new* tab rather than replacing the current (blocked) one, so the
+   *  blocked page is left behind rather than revealed by a back-swipe. Falls
+   *  back to GLOBAL_ACTION_HOME if the browser can't handle it for any
+   *  reason (uninstalled mid-session, restricted profile, etc). */
+  private fun redirectBrowserToSafeTab(browserPackage: String) {
+    try {
+      val intent = Intent(Intent.ACTION_VIEW, Uri.parse(SAFE_TAB_URL)).apply {
+        setPackage(browserPackage)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      }
+      service.startActivity(intent)
+    } catch (e: Exception) {
+      @Suppress("DEPRECATION")
+      service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+    }
   }
 
   private fun overlayWindowType(): Int =
@@ -445,5 +478,6 @@ class BlockOverlay(private val service: AccessibilityService) {
   companion object {
     const val BLOCK_SCREEN_STRINGS_KEY = "block_screen_strings"
     private const val NEUTRAL = "#a1a1aa"
+    private const val SAFE_TAB_URL = "https://www.google.com"
   }
 }

@@ -9,6 +9,7 @@ import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -85,10 +86,30 @@ class BlockAccessibilityService : AccessibilityService() {
     }
   }
 
+  // TYPE_WINDOW_STATE_CHANGED isn't reliably fired by every OEM launcher
+  // on every transition — most notably, returning to an already-running
+  // app via the Recents/task-switcher card doesn't always produce a fresh
+  // event, so tracking/blocking could get stuck reflecting whatever app
+  // was last confirmed by an event instead of what's actually on screen.
+  // This lightweight poll (just reads the current window's package name,
+  // no tree walk) catches that within one interval and also re-checks
+  // block status for the CURRENT app on every tick — without it, a
+  // scheduled profile crossing its limit only got enforced on the NEXT
+  // real app switch, so the user had to leave and re-enter the app
+  // before the block screen appeared.
+  private val foregroundPollHandler = Handler(Looper.getMainLooper())
+  private val foregroundPollRunnable = object : Runnable {
+    override fun run() {
+      checkForegroundConsistency()
+      foregroundPollHandler.postDelayed(this, FOREGROUND_POLL_INTERVAL_MS)
+    }
+  }
+
   override fun onServiceConnected() {
     super.onServiceConnected()
     overlay = BlockOverlay(this)
     heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS)
+    foregroundPollHandler.postDelayed(foregroundPollRunnable, FOREGROUND_POLL_INTERVAL_MS)
     registerReceiver(screenReceiver, IntentFilter().apply {
       addAction(Intent.ACTION_SCREEN_OFF)
       addAction(Intent.ACTION_SCREEN_ON)
@@ -97,8 +118,31 @@ class BlockAccessibilityService : AccessibilityService() {
 
   override fun onDestroy() {
     heartbeatHandler.removeCallbacks(heartbeatRunnable)
+    foregroundPollHandler.removeCallbacks(foregroundPollRunnable)
     try { unregisterReceiver(screenReceiver) } catch (e: Exception) {}
     super.onDestroy()
+  }
+
+  private fun checkForegroundConsistency() {
+    if (!screenOn || !::overlay.isInitialized) return
+    val root = rootInActiveWindow ?: return
+    val currentPkg = try {
+      root.packageName?.toString()
+    } finally {
+      try { root.recycle() } catch (e: Exception) {}
+    }
+    if (currentPkg.isNullOrBlank()) return
+
+    if (currentPkg != lastPackageName) {
+      // Missed switch event — replay the normal handling so tracking and
+      // blocking catch up instead of staying stuck on stale state.
+      handleWindowStateChanged(currentPkg)
+      return
+    }
+
+    if (currentPkg != this.packageName && isBlocked(currentPkg) && !overlay.isShowingFor(currentPkg)) {
+      overlay.show(currentPkg, "app", "")
+    }
   }
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -175,6 +219,11 @@ class BlockAccessibilityService : AccessibilityService() {
     val now = SystemClock.elapsedRealtime()
     if (!force && now - lastShortsCheckMs < SHORTS_CHECK_THROTTLE_MS) return
     lastShortsCheckMs = now
+
+    // See ShortsFeedDetector's DEBUG_LOGGING doc comment — confirms this
+    // gating (reelsShortsBlocked + supported package) is even being reached
+    // for the app under test, before looking at the detector's own logs.
+    Log.d("BWM_Shorts", "checkShortsFeed pkg=$packageName force=$force")
 
     val root = rootInActiveWindow ?: return
     val showing = try {
@@ -336,6 +385,7 @@ class BlockAccessibilityService : AccessibilityService() {
     private const val CONTENT_CHECK_THROTTLE_MS = 2500L
     private const val SHORTS_CHECK_THROTTLE_MS = 1000L
     private const val HEARTBEAT_INTERVAL_MS = 60 * 1000L
+    private const val FOREGROUND_POLL_INTERVAL_MS = 2000L
 
     fun dateKey(date: Date): String =
       SimpleDateFormat("yyyy-MM-dd", Locale.US).format(date)

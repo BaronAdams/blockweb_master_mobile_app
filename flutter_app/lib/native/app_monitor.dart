@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/i18n_service.dart';
+import '../models/limits.dart';
 import '../state/app_settings.dart';
 import '../state/app_store.dart';
 import 'block_screen_strings.dart';
@@ -103,6 +104,13 @@ class AppMonitorService {
     _syncReelsShortsBlocked(state);
   }
 
+  // Adult-content and Reels/Shorts blocking are Premium-only features — the
+  // toggle can only be turned on via the (Premium-gated) UI, but this is a
+  // second line of defense so a plan downgrade with the flag still set to
+  // true in stored state doesn't keep it enforced on native.
+  static bool _adultBlockActive(AppStoreState state) => state.adultContentBlocked && isPremium(state.plan);
+  static bool _reelsShortsBlockActive(AppStoreState state) => state.reelsShortsBlocked && isPremium(state.plan);
+
   static void _syncBlockedApps(AppStoreState state, Set<String> profileApps) {
     final effective = <String>{
       ...state.blockedApps.where((a) => a.isBlocked).map((a) => a.packageName),
@@ -110,7 +118,7 @@ class AppMonitorService {
       // TikTok is 100% short-form video — blocking the whole app IS
       // blocking its shorts feed, no in-app detection needed (unlike
       // Instagram/Facebook/YouTube, see ShortsFeedDetector.kt).
-      if (state.reelsShortsBlocked) ...tiktokPackageNames,
+      if (_reelsShortsBlockActive(state)) ...tiktokPackageNames,
     };
     final key = (effective.toList()..sort()).join(',');
     if (_lastSyncedApps == key) return;
@@ -138,7 +146,7 @@ class AppMonitorService {
       // address-bar text for every blocked keyword, which is exactly what
       // matching a URL path like "youtube.com/shorts" needs, so no native
       // changes were required for this one.
-      if (state.reelsShortsBlocked) ...reelsShortsUrlPatterns,
+      if (_reelsShortsBlockActive(state)) ...reelsShortsUrlPatterns,
     };
     final key = (effective.toList()..sort()).join(',');
     if (_lastSyncedKeywords == key) return;
@@ -147,7 +155,7 @@ class AppMonitorService {
   }
 
   static void _syncAdultDomains(AppStoreState state) {
-    final effective = state.adultContentBlocked ? adultDomains : const <String>[];
+    final effective = _adultBlockActive(state) ? adultDomains : const <String>[];
     final key = (List.of(effective)..sort()).join(',');
     if (_lastSyncedAdultDomains == key) return;
     _lastSyncedAdultDomains = key;
@@ -155,15 +163,17 @@ class AppMonitorService {
   }
 
   static void _syncAdultContentBlocked(AppStoreState state) {
-    if (_lastSyncedAdultContentBlocked == state.adultContentBlocked) return;
-    _lastSyncedAdultContentBlocked = state.adultContentBlocked;
-    BlockerBridge.setAdultContentBlocked(state.adultContentBlocked);
+    final active = _adultBlockActive(state);
+    if (_lastSyncedAdultContentBlocked == active) return;
+    _lastSyncedAdultContentBlocked = active;
+    BlockerBridge.setAdultContentBlocked(active);
   }
 
   static void _syncReelsShortsBlocked(AppStoreState state) {
-    if (_lastSyncedReelsShortsBlocked == state.reelsShortsBlocked) return;
-    _lastSyncedReelsShortsBlocked = state.reelsShortsBlocked;
-    BlockerBridge.setReelsShortsBlocked(state.reelsShortsBlocked);
+    final active = _reelsShortsBlockActive(state);
+    if (_lastSyncedReelsShortsBlocked == active) return;
+    _lastSyncedReelsShortsBlocked = active;
+    BlockerBridge.setReelsShortsBlocked(active);
   }
 
   static void _syncBlockScreenStrings(I18nService i18n) {
