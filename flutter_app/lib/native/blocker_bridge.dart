@@ -121,11 +121,20 @@ class BlockerBridge {
     }
   }
 
-  static Future<void> requestDeviceAdmin(String explanation) async {
-    if (!_supported) return;
+  /// Returns whether the actual ADD_DEVICE_ADMIN screen was launched. False
+  /// means native fell back to opening this app's own Settings page instead
+  /// (most likely cause: Android 13+'s "restricted settings" block on a
+  /// sideloaded/unsigned APK — see BlockerBridge.kt's requestDeviceAdmin doc
+  /// comment) — the caller should tell the user why nothing "device admin"
+  /// specific appeared, since the app Settings page it landed on instead
+  /// isn't self-explanatory.
+  static Future<bool> requestDeviceAdmin(String explanation) async {
+    if (!_supported) return false;
     try {
-      await _channel.invokeMethod('requestDeviceAdmin', {'explanation': explanation});
-    } catch (_) {}
+      return await _channel.invokeMethod<bool>('requestDeviceAdmin', {'explanation': explanation}) ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Opens a system Settings screen by action string, e.g.

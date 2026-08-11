@@ -497,6 +497,7 @@
     "deviceAdminDesc": "Requires Device Administrator access — an extra Android permission on top of Accessibility. Without it, the app can be uninstalled even during Strict Mode.",
     "deviceAdminEnable": "Enable",
     "deviceAdminExplanation": "BlockWeb Master needs this to prevent the app from being uninstalled while Strict Mode is active.",
+    "deviceAdminRestrictedHint": "Couldn't open the screen directly — the app's Settings page just opened instead. Tap the ⋮ menu top-right, choose \"Allow restricted setting\", then come back here and try again.",
     "windows": "Windows",
     "mac": "macOS",
     "copy": "Copy",
