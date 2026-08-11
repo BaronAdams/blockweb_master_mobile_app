@@ -497,6 +497,7 @@
     "deviceAdminDesc": "Nécessite l'accès Administrateur de l'appareil — une permission Android supplémentaire, en plus de l'Accessibilité. Sans elle, l'appli peut être désinstallée même pendant le Strict Mode.",
     "deviceAdminEnable": "Activer",
     "deviceAdminExplanation": "BlockWeb Master a besoin de ceci pour empêcher la désinstallation de l'appli tant que le Strict Mode est actif.",
+    "deviceAdminRestrictedHint": "Impossible d'ouvrir l'écran directement — la page Paramètres de l'appli vient de s'ouvrir à la place. Touche le menu ⋮ en haut à droite, choisis « Autoriser ce paramètre restreint », puis reviens ici et réessaie.",
     "windows": "Windows",
     "mac": "macOS",
     "copy": "Copier",

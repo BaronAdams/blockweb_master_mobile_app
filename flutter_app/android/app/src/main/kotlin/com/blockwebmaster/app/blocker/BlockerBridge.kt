@@ -15,6 +15,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.Base64
+import android.util.Log
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
@@ -28,6 +29,10 @@ import java.io.ByteArrayOutputStream
  * See flutter_app/lib/native/blocker_bridge.dart for the Dart-side caller.
  */
 class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHandler {
+
+  companion object {
+    private const val TAG = "BlockerBridge"
+  }
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
     try {
@@ -90,8 +95,7 @@ class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHand
         "isDeviceAdminActive" -> result.success(devicePolicyManager().isAdminActive(deviceAdminComponent()))
 
         "requestDeviceAdmin" -> {
-          requestDeviceAdmin(call.argument<String>("explanation") ?: "")
-          result.success(null)
+          result.success(requestDeviceAdmin(call.argument<String>("explanation") ?: ""))
         }
 
         "setBlockScreenStrings" -> {
@@ -137,17 +141,55 @@ class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHand
   private fun deviceAdminComponent(): ComponentName =
     ComponentName(context, BlockerDeviceAdminReceiver::class.java)
 
-  private fun requestDeviceAdmin(explanation: String) {
+  /**
+   * @return true if the ADD_DEVICE_ADMIN screen (or, failing that, the app's
+   *   own Settings page as a fallback) was actually launched — previously
+   *   this swallowed every failure silently and always reported success to
+   *   Dart, which is exactly the "I tap Activer and nothing happens, no
+   *   error either" bug report: the button's tap handler had no way to
+   *   know it had failed, so it couldn't do anything about it.
+   *
+   *   The likely cause on a sideloaded/unsigned APK (this app isn't
+   *   Play-Store-distributed — see the CI build): Android 13+'s "restricted
+   *   settings" anti-malware feature blocks a freshly-sideloaded app from
+   *   even opening certain sensitive permission screens (Accessibility,
+   *   Device Admin) via intent until the user first visits this app's Settings
+   *   page and taps the overflow menu's "Allow restricted setting" — with no
+   *   visible error, exactly matching the report. ACTION_ADD_DEVICE_ADMIN
+   *   silently has no resolvable/launchable target in that state, so this
+   *   falls back to the app's own Settings page, which IS where that
+   *   unlock option lives.
+   */
+  private fun requestDeviceAdmin(explanation: String): Boolean {
     val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
       putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, deviceAdminComponent())
       putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, explanation)
       addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
-    try {
+    if (intent.resolveActivity(context.packageManager) != null) {
+      try {
+        context.startActivity(intent)
+        return true
+      } catch (e: Exception) {
+        Log.w(TAG, "ACTION_ADD_DEVICE_ADMIN resolved but startActivity failed", e)
+      }
+    } else {
+      Log.w(TAG, "ACTION_ADD_DEVICE_ADMIN has no resolvable target (likely Android 13+ restricted settings on a sideloaded APK)")
+    }
+    return openAppSettingsFallback()
+  }
+
+  private fun openAppSettingsFallback(): Boolean {
+    return try {
+      val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = Uri.parse("package:${context.packageName}")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      }
       context.startActivity(intent)
+      false
     } catch (e: Exception) {
-      // No Settings app able to handle this on some OEM builds — the
-      // Strict Mode screen just keeps showing "not active" in that case.
+      Log.w(TAG, "App Settings fallback also failed", e)
+      false
     }
   }
 

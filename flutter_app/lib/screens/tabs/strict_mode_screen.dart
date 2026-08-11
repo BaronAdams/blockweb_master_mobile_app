@@ -15,6 +15,7 @@ import '../../widgets/app_header.dart';
 import '../../widgets/countdown_cell.dart';
 import '../../widgets/faq_accordion.dart';
 import '../../widgets/section_title.dart';
+import '../../widgets/toast.dart';
 import '../../widgets/unit_picker.dart';
 
 const _red = Color(0xFFF43F5E);
@@ -350,7 +351,12 @@ class _DeviceAdminCard extends StatelessWidget {
           ),
           if (!active)
             OutlinedButton(
-              onPressed: () => BlockerBridge.requestDeviceAdmin(t('deviceAdminExplanation')),
+              onPressed: () async {
+                final launched = await BlockerBridge.requestDeviceAdmin(t('deviceAdminExplanation'));
+                if (!launched && context.mounted) {
+                  showWarningToast(context, t('deviceAdminRestrictedHint'));
+                }
+              },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: colors.border),
                 foregroundColor: colors.foreground,
