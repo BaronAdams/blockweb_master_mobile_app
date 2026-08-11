@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
+const _red = Color(0xFFF43F5E);
+
 /// Port of components/ui/progress.tsx.
 class AppProgressBar extends StatelessWidget {
   final double value; // 0..100
@@ -10,16 +12,18 @@ class AppProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppTheme.colorsOf(context);
+    // num.clamp() always returns num, even on a double receiver — the
+    // .toDouble() is load-bearing, not decorative (LinearProgressIndicator
+    // .value is strictly double?).
+    final clamped = value.clamp(0, 100).toDouble();
     return ClipRRect(
       borderRadius: BorderRadius.circular(height / 2),
       child: LinearProgressIndicator(
-        // num.clamp() always returns num, even on a double receiver — the
-        // .toDouble() is load-bearing, not decorative (LinearProgressIndicator
-        // .value is strictly double?).
-        value: value.clamp(0, 100).toDouble() / 100,
+        value: clamped / 100,
         minHeight: height,
         backgroundColor: colors.border,
-        valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
+        // Full/over the limit reads as a warning, not just "100% done".
+        valueColor: AlwaysStoppedAnimation<Color>(clamped >= 100 ? _red : colors.primary),
       ),
     );
   }

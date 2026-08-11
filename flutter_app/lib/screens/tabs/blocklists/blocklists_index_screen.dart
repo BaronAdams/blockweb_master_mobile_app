@@ -100,6 +100,8 @@ class BlocklistsIndexScreen extends ConsumerWidget {
                           description: t('adultDesc'),
                           value: store.adultContentBlocked,
                           onChanged: notifier.setAdultContentBlocked,
+                          locked: !isPremium(store.plan),
+                          premiumLabel: t('adultPremium'),
                         ),
                         const SizedBox(height: 10),
                         _ToggleRow(
@@ -109,6 +111,8 @@ class BlocklistsIndexScreen extends ConsumerWidget {
                           description: t('reelsBlockingDesc'),
                           value: store.reelsShortsBlocked,
                           onChanged: notifier.setReelsShortsBlocked,
+                          locked: !isPremium(store.plan),
+                          premiumLabel: t('adultPremium'),
                         ),
                         const SizedBox(height: 20),
                         Text(t('quickBlocksTitle'),
@@ -183,6 +187,8 @@ class _ToggleRow extends StatelessWidget {
   final String description;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final bool locked;
+  final String premiumLabel;
   const _ToggleRow({
     required this.icon,
     required this.color,
@@ -190,12 +196,14 @@ class _ToggleRow extends StatelessWidget {
     required this.description,
     required this.value,
     required this.onChanged,
+    this.locked = false,
+    this.premiumLabel = '',
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = AppTheme.colorsOf(context);
-    return Container(
+    final content = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: colors.card, border: Border.all(color: colors.border), borderRadius: BorderRadius.circular(14)),
       child: Row(
@@ -212,16 +220,37 @@ class _ToggleRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.foreground)),
+                Row(
+                  children: [
+                    Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.foreground)),
+                    if (locked) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: colors.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(999)),
+                        child: Text(premiumLabel, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: colors.primary)),
+                      ),
+                    ],
+                  ],
+                ),
                 const SizedBox(height: 2),
                 Text(description, style: TextStyle(fontSize: 11, color: colors.mutedForeground)),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Switch(value: value, onChanged: onChanged, activeColor: colors.primary),
+          locked
+              ? Icon(Icons.lock_outline_rounded, size: 18, color: colors.mutedForeground)
+              : Switch(value: value, onChanged: onChanged, activeColor: colors.primary),
         ],
       ),
+    );
+
+    if (!locked) return content;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => context.push('/pricing'),
+      child: content,
     );
   }
 }

@@ -6,8 +6,9 @@ class ChoiceCard extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onPressed;
+  final Widget? leading;
 
-  const ChoiceCard({super.key, required this.label, required this.selected, required this.onPressed});
+  const ChoiceCard({super.key, required this.label, required this.selected, required this.onPressed, this.leading});
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +26,7 @@ class ChoiceCard extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            if (leading != null) ...[leading!, const SizedBox(width: 12)],
             Expanded(child: Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.foreground))),
             if (selected)
               Container(
