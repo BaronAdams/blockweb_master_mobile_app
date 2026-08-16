@@ -97,7 +97,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(path: '/login', builder: (context, state) => LoginScreen(initialMessage: state.extra as String?)),
       GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
       GoRoute(path: '/onboarding/permissions', builder: (context, state) => const PermissionsScreen()),
       GoRoute(path: '/onboarding/build-up', builder: (context, state) => const BuildUpFlowScreen()),

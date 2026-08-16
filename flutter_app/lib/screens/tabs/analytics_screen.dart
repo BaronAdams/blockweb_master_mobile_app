@@ -41,6 +41,14 @@ class AnalyticsScreen extends ConsumerStatefulWidget {
 
 class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   int? _selectedHour;
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,16 +80,40 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     final todayKey = _dateKey(now);
     final todayLabel = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}';
 
-    DailyAnalytics? todayRecord;
+    final selectedDateKey = _dateKey(_selectedDate);
+    final isSelectedToday = selectedDateKey == todayKey;
+    final isSelectedYesterday = selectedDateKey == _dateKey(now.subtract(const Duration(days: 1)));
+    final selectedDateLabel = isSelectedToday
+        ? tc('today')
+        : isSelectedYesterday
+            ? tc('yesterday')
+            : '${tc(_weekdayKeys[_selectedDate.weekday - 1])} ${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}';
+
+    void goToPreviousDay() {
+      setState(() {
+        _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+        _selectedHour = null;
+      });
+    }
+
+    void goToNextDay() {
+      if (isSelectedToday) return;
+      setState(() {
+        _selectedDate = _selectedDate.add(const Duration(days: 1));
+        _selectedHour = null;
+      });
+    }
+
+    DailyAnalytics? selectedRecord;
     for (final a in store.analytics) {
-      if (a.date == todayKey) {
-        todayRecord = a;
+      if (a.date == selectedDateKey) {
+        selectedRecord = a;
         break;
       }
     }
 
-    final categoryTotals = todayRecord != null
-        ? getCategoryBreakdown(todayRecord.appUsage, const [], categoryOverrides: store.categoryOverrides)
+    final categoryTotals = selectedRecord != null
+        ? getCategoryBreakdown(selectedRecord.appUsage, const [], categoryOverrides: store.categoryOverrides)
         : null;
     final categoryTotal = categoryTotals == null
         ? 0.0
@@ -97,7 +129,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     final distractionPct = categoryTotal > 0 ? ((categoryTotals?.distraction ?? 0) / categoryTotal * 100).round() : 0;
 
     final hourlyBars = List.generate(24, (h) {
-      final usageForHour = todayRecord?.hourlyUsage?['$h'] ?? const <String, double>{};
+      final usageForHour = selectedRecord?.hourlyUsage?['$h'] ?? const <String, double>{};
       final totals = getCategoryBreakdown(usageForHour, const [], categoryOverrides: store.categoryOverrides);
       final segments = [
         for (final cat in _categoryOrder4)
@@ -106,7 +138,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       return StackedBarDataPoint(label: '$h', segments: segments);
     });
     final hasHourlyData = hourlyBars.any((b) => b.segments.isNotEmpty);
-    final totalDailyMinutes = todayRecord?.totalMinutes ?? 0.0;
+    final totalDailyMinutes = selectedRecord?.totalMinutes ?? 0.0;
 
     void onHourTap(int index) {
       if (hourlyBars[index].segments.isEmpty) return;
@@ -114,8 +146,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     }
 
     final historySource = _selectedHour != null
-        ? (todayRecord?.hourlyUsage?['$_selectedHour'] ?? const <String, double>{})
-        : (todayRecord?.appUsage ?? const <String, double>{});
+        ? (selectedRecord?.hourlyUsage?['$_selectedHour'] ?? const <String, double>{})
+        : (selectedRecord?.appUsage ?? const <String, double>{});
     final historyEntries = historySource.entries
         .map((e) => (packageName: e.key, minutes: e.value, category: resolveAppCategory(e.key, store.categoryOverrides)))
         .toList()
@@ -181,28 +213,69 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   ChartContainer(
                     title: t('hourlyChart'),
                     description: t('hourlyDesc'),
-                    child: !hasHourlyData
-                        ? EmptyChartState(label: t('noData'), hint: t('trackingHint'))
-                        : Column(
+                    child: GestureDetector(
+                      // Swipe left (negative velocity) = forward a day, swipe
+                      // right = back a day — same direction convention as a
+                      // calendar/paging view. A firm velocity threshold
+                      // avoids reacting to an incidental drag while trying to
+                      // tap a bar in the chart below.
+                      onHorizontalDragEnd: (details) {
+                        final v = details.primaryVelocity ?? 0;
+                        if (v <= -200) {
+                          goToNextDay();
+                        } else if (v >= 200) {
+                          goToPreviousDay();
+                        }
+                      },
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(formatMinutes(totalDailyMinutes),
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: colors.foreground)),
-                              const SizedBox(height: 12),
-                              StackedBarChart(
-                                data: hourlyBars,
-                                height: 150,
-                                labelEvery: 4,
-                                selectedIndex: _selectedHour,
-                                onBarTap: onHourTap,
+                              IconButton(
+                                onPressed: goToPreviousDay,
+                                icon: Icon(Icons.chevron_left_rounded, color: colors.foreground),
+                                tooltip: tc('previous'),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    Text(selectedDateLabel,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.mutedForeground)),
+                                    const SizedBox(height: 2),
+                                    Text(formatMinutes(totalDailyMinutes),
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: colors.foreground)),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: isSelectedToday ? null : goToNextDay,
+                                icon: Icon(Icons.chevron_right_rounded, color: isSelectedToday ? colors.border : colors.foreground),
+                                tooltip: tc('next'),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 8),
+                          if (!hasHourlyData)
+                            EmptyChartState(label: t('noData'), hint: t('trackingHint'))
+                          else
+                            StackedBarChart(
+                              data: hourlyBars,
+                              height: 150,
+                              labelEvery: 4,
+                              selectedIndex: _selectedHour,
+                              onBarTap: onHourTap,
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   ChartContainer(
                     title: t('history'),
-                    description: _selectedHour != null ? t('filteredByHour', {'hour': _selectedHour}) : '${tc('today')} · $todayLabel',
+                    description: _selectedHour != null ? t('filteredByHour', {'hour': _selectedHour}) : selectedDateLabel,
                     child: historyEntries.isEmpty
                         ? EmptyChartState(label: t('noNavigation'), hint: t('trackingHint'))
                         : Column(
