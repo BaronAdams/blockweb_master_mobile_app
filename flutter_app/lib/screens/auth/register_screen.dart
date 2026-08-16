@@ -38,9 +38,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _loading = true;
     });
     try {
-      await supabase.auth.signUp(email: _email.text, password: _password.text);
+      final response = await supabase.auth.signUp(email: _email.text, password: _password.text);
       if (!mounted) return;
-      context.go('/');
+      if (response.session == null) {
+        // No session yet means Supabase requires email confirmation before
+        // the account can actually sign in — go straight to Login instead
+        // of the dashboard, with a banner explaining why, rather than
+        // leaving the user to find out the hard way on their next attempt.
+        context.go('/login', extra: t('accountCreated'));
+      } else {
+        context.go('/');
+      }
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() => _error = e.message == 'User already registered' ? t('userAlreadyRegistered') : t('invalidEmail'));
