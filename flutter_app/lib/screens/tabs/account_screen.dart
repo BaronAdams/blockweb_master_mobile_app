@@ -172,6 +172,8 @@ class AccountScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             _AppearanceSection(t: t),
             const SizedBox(height: 20),
+            _LanguageSection(t: t),
+            const SizedBox(height: 20),
             SectionTitle(t('permanentDeletion'), color: const Color(0xFFF43F5E)),
             DangerButton(
               label: t('signOut'),

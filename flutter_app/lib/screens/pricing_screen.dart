@@ -57,9 +57,11 @@ class PricingScreen extends ConsumerWidget {
     final colors = AppTheme.colorsOf(context);
     final i18n = ref.watch(i18nProvider);
     String t(String key, [Map<String, dynamic>? vars]) => i18n.t('pricing', key, vars: vars);
+    String tc(String key) => i18n.t('common', key);
     final currentPlan = ref.watch(appStoreProvider).plan;
 
     final featureRows = [
+      (labelKey: 'blockedApps', free: t('getApps', {'n': 3}), premium: t('unlimited')),
       (labelKey: 'blockedSites', free: t('getSites', {'n': 3}), premium: t('unlimited')),
       (labelKey: 'blockedKeywords', free: t('getKeywords', {'n': 3}), premium: t('unlimited')),
       (labelKey: 'profiles', free: t('getProfiles', {'n': 1}), premium: t('unlimited')),
@@ -84,6 +86,26 @@ class PricingScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               children: [
                 SectionTitle(t('included')),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      const Expanded(child: SizedBox.shrink()),
+                      SizedBox(
+                        width: 70,
+                        child: Text(tc('free'),
+                            textAlign: TextAlign.right,
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: colors.mutedForeground)),
+                      ),
+                      SizedBox(
+                        width: 70,
+                        child: Text(tc('premium'),
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: Color(0xFF34D399))),
+                      ),
+                    ],
+                  ),
+                ),
                 for (int i = 0; i < featureRows.length; i++)
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 10),
