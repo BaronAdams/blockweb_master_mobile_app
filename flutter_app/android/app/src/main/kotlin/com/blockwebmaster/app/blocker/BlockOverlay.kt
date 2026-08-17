@@ -11,6 +11,9 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -52,6 +55,20 @@ class BlockOverlay(private val service: AccessibilityService) {
   private var shownForPackage: String? = null
   private var lastReasonKey: String? = null
   private var lastValue: String? = null
+
+  // ---- Audio focus (silences the blocked app while the overlay is up) ----
+  // The overlay only visually covers the blocked app — its audio/video
+  // session keeps running underneath unless something else intervenes.
+  // Requesting audio focus (AUDIOFOCUS_GAIN, non-transient — we're not
+  // signaling a brief interruption the other app should auto-resume after)
+  // is the standard OS-level mechanism apps are expected to honor by
+  // pausing/stopping their own playback on AUDIOFOCUS_LOSS; unlike the
+  // Reels/Shorts accessibility-label heuristic, this doesn't depend on any
+  // particular app's UI and is respected by virtually every media/video app
+  // (YouTube, TikTok, Instagram, Spotify…) since Android requires it for
+  // Play Store compliance.
+  private var audioFocusRequest: AudioFocusRequest? = null
+  private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { /* no-op: we never play anything ourselves */ }
 
   /** Cached header logo (res/drawable-nodpi/logo_shield.png, same gold
    *  shield mark as AppHeader/app icon) — decoded once since it never
@@ -117,6 +134,7 @@ class BlockOverlay(private val service: AccessibilityService) {
       shownForPackage = packageName
       lastReasonKey = reasonKey
       lastValue = value
+      grabAudioFocus()
     } catch (e: Exception) {
       // Some OEMs restrict overlay windows further than the permission
       // check alone predicts — never let this crash the service.
@@ -135,11 +153,49 @@ class BlockOverlay(private val service: AccessibilityService) {
       try {
         view.destroy()
       } catch (e: Exception) {}
+      releaseAudioFocus()
     }
     overlayView = null
     shownForPackage = null
     lastReasonKey = null
     lastValue = null
+  }
+
+  private fun grabAudioFocus() {
+    val am = service.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val attrs = AudioAttributes.Builder()
+          .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+          .setContentType(AudioAttributes.CONTENT_TYPE_UNKNOWN)
+          .build()
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+          .setAudioAttributes(attrs)
+          .setOnAudioFocusChangeListener(audioFocusListener)
+          .build()
+        am.requestAudioFocus(request)
+        audioFocusRequest = request
+      } else {
+        @Suppress("DEPRECATION")
+        am.requestAudioFocus(audioFocusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+      }
+    } catch (e: Exception) {
+      // Best-effort — a failed focus request just means the blocked app
+      // keeps making noise, not something worth surfacing as an error.
+    }
+  }
+
+  private fun releaseAudioFocus() {
+    val am = service.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
+        audioFocusRequest = null
+      } else {
+        @Suppress("DEPRECATION")
+        am.abandonAudioFocus(audioFocusListener)
+      }
+    } catch (e: Exception) {}
   }
 
   // ---- Action buttons (intercepted custom-scheme navigations) -----------
@@ -158,7 +214,9 @@ class BlockOverlay(private val service: AccessibilityService) {
         val reason = lastReasonKey
         dismiss()
         if ((reason == "site" || reason == "keyword" || reason == "adult") && browserPackage != null) {
-          redirectBrowserToSafeTab(browserPackage)
+          if (!navigateBrowserTabInPlace(browserPackage)) {
+            redirectBrowserToSafeTab(browserPackage)
+          }
         } else {
           @Suppress("DEPRECATION")
           service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
@@ -182,13 +240,36 @@ class BlockOverlay(private val service: AccessibilityService) {
     } catch (e: Exception) {}
   }
 
-  /** Sends the blocked browser a fresh ACTION_VIEW for a safe URL — on every
-   *  mainstream Android browser (Chrome, Firefox, Samsung Internet…),
-   *  receiving a VIEW intent from another app while already running opens it
-   *  in a *new* tab rather than replacing the current (blocked) one, so the
-   *  blocked page is left behind rather than revealed by a back-swipe. Falls
-   *  back to GLOBAL_ACTION_HOME if the browser can't handle it for any
-   *  reason (uninstalled mid-session, restricted profile, etc). */
+  /** Preferred path: types the safe URL into the blocked tab's own address
+   *  bar and submits it (see BrowserUrlWatcher.navigateInPlace) — actually
+   *  replaces that tab's content instead of leaving it dangling alongside a
+   *  new one. By the time this runs the overlay is the active/focused
+   *  window, so `service.rootInActiveWindow` would return OUR window, not
+   *  the browser's — has to look the browser's window up explicitly via
+   *  `service.windows` instead. Returns false (caller falls back to
+   *  redirectBrowserToSafeTab) if the browser's window/address-bar can't be
+   *  found or we're below the API level ACTION_IME_ENTER requires. */
+  private fun navigateBrowserTabInPlace(browserPackage: String): Boolean {
+    val root = try {
+      service.windows.firstOrNull { it.root?.packageName == browserPackage }?.root
+    } catch (e: Exception) {
+      null
+    } ?: return false
+    return try {
+      BrowserUrlWatcher.navigateInPlace(root, browserPackage, SAFE_TAB_URL)
+    } finally {
+      try { root.recycle() } catch (e: Exception) {}
+    }
+  }
+
+  /** Fallback: sends the blocked browser a fresh ACTION_VIEW for a safe URL
+   *  — on every mainstream Android browser (Chrome, Firefox, Samsung
+   *  Internet…), receiving a VIEW intent from another app while already
+   *  running opens it in a *new* tab rather than replacing the current
+   *  (blocked) one, leaving that tab dangling in the tab list — used only
+   *  when navigateBrowserTabInPlace() couldn't act directly. Falls back to
+   *  GLOBAL_ACTION_HOME if the browser can't handle it for any reason
+   *  (uninstalled mid-session, restricted profile, etc). */
   private fun redirectBrowserToSafeTab(browserPackage: String) {
     try {
       val intent = Intent(Intent.ACTION_VIEW, Uri.parse(SAFE_TAB_URL)).apply {
@@ -301,14 +382,17 @@ class BlockOverlay(private val service: AccessibilityService) {
     else -> Pair("#fb7185", "#f43f5e") // site, keyword, adult, interval
   }
 
+  // 48px, matching resolveAppIconDataUri's real-app-icon floating size in
+  // buildHtml — was defaulting to the same 20px used for the small detail-row
+  // icons, disproportionately tiny centered in the 96px icon-circle.
   private fun floatingIconSvg(reasonKey: String, color: String): String = when (reasonKey) {
-    "adult" -> svg(color, """<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/>""")
-    "daily" -> svg(color, """<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>""")
-    "hourly" -> svg(color, """<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>""")
-    "weekly" -> svg(color, """<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>""")
-    "interval" -> svg(color, """<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>""")
-    "shorts" -> svg(color, """<rect width="18" height="18" x="3" y="3" rx="4"/><path d="m10 8 5 4-5 4V8z"/>""") // play/video icon
-    else -> svg(color, """<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>""") // site, keyword
+    "adult" -> svg(color, """<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/>""", size = 48)
+    "daily" -> svg(color, """<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>""", size = 48)
+    "hourly" -> svg(color, """<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>""", size = 48)
+    "weekly" -> svg(color, """<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>""", size = 48)
+    "interval" -> svg(color, """<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>""", size = 48)
+    "shorts" -> svg(color, """<rect width="18" height="18" x="3" y="3" rx="4"/><path d="m10 8 5 4-5 4V8z"/>""", size = 48) // play/video icon
+    else -> svg(color, """<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>""", size = 48) // site, keyword
   }
 
   private fun detailIconSvg(reasonKey: String): String = when (reasonKey) {
@@ -319,8 +403,8 @@ class BlockOverlay(private val service: AccessibilityService) {
     else -> svg(NEUTRAL, """<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>""") // site
   }
 
-  private fun svg(color: String, paths: String): String =
-    """<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="$color" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">$paths</svg>"""
+  private fun svg(color: String, paths: String, size: Int = 20): String =
+    """<svg width="$size" height="$size" viewBox="0 0 24 24" fill="none" stroke="$color" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">$paths</svg>"""
 
   private val iconHourglass = svg(NEUTRAL, """<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>""")
   private val iconX = svg("rgba(244,63,94,0.8)", """<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>""")
