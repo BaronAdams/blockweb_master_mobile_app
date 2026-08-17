@@ -103,6 +103,13 @@ String buildBlockScreenStringsJson(I18nService i18n) {
     'quotes': [
       for (var i = 1; i <= 10; i++) {'text': t('quote_${i}_desc'), 'author': t('quote_${i}_author')},
     ],
+    // Countdown notification (CountdownNotifier.kt) — two literal tokens
+    // instead of the single {{value}} the reason cards above use, since it
+    // needs both the profile name and the remaining minutes.
+    'countdown': {
+      'title': t('countdownTitle', {'profile': '{{profile}}'}),
+      'body': t('countdownBody', {'minutes': '{{minutes}}'}),
+    },
   };
 
   assert(_reasonKeys.every((k) => (bundle['reasons'] as Map).containsKey(k)));

@@ -212,6 +212,8 @@
     "intervalDesc": "Profile \"{{name}}\" is blocking this access during this time slot. Stay focused — the block will end soon.",
     "intervalBadge": "Active block period",
     "intervalReason": "Scheduled interval block",
+    "countdownTitle": "⏱ {{profile}}",
+    "countdownBody": "{{minutes}} min left before blocking",
     "quote_1_desc": "Discipline is choosing between what you want now and what you want most.",
     "quote_1_author": "Abraham Lincoln",
     "quote_2_desc": "Concentration is the root of all higher human abilities.",

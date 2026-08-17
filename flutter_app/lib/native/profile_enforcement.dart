@@ -42,6 +42,49 @@ ProfileBlockTargets computeProfileBlockTargets(AppStoreState state, {DateTime? n
   return ProfileBlockTargets(apps: apps, domains: domains, keywords: keywords);
 }
 
+class ProfileCountdown {
+  final String profileName;
+  final int remainingMinutes;
+  const ProfileCountdown({required this.profileName, required this.remainingMinutes});
+}
+
+/// For every app covered by an ACTIVE, budget-based profile (daily/hourly/
+/// weekly — interval has no "remaining minutes" concept, it's a fixed time
+/// window) that still has time left, the countdown to show once the user is
+/// actually inside that app. If more than one active profile covers the
+/// same package, the one closest to running out wins — that's the one
+/// about to actually matter to the user.
+Map<String, ProfileCountdown> computeProfileCountdowns(AppStoreState state, {DateTime? now}) {
+  final result = <String, ProfileCountdown>{};
+  final nowResolved = now ?? DateTime.now();
+
+  for (final profile in state.limiterProfiles) {
+    if (!profile.isActive) continue;
+    if (profile.type == LimiterType.interval) continue;
+    if (_isProfileBlocking(profile, nowResolved)) continue;
+    if (!_isActiveToday(profile, nowResolved)) continue;
+
+    final (limit, used) = switch (profile.type) {
+      LimiterType.daily => (profile.dailyLimitMinutes, profile.dailyUsedMinutes ?? 0),
+      LimiterType.hourly => (profile.hourlyLimitMinutes, profile.hourlyUsedMinutes ?? 0),
+      LimiterType.weekly => (profile.weeklyLimitMinutes, profile.weeklyUsedMinutes ?? 0),
+      LimiterType.interval => (null, 0),
+    };
+    if (limit == null || limit <= 0) continue;
+    final remaining = limit - used;
+    if (remaining <= 0) continue;
+
+    for (final pkg in profile.apps) {
+      final existing = result[pkg];
+      if (existing == null || remaining < existing.remainingMinutes) {
+        result[pkg] = ProfileCountdown(profileName: profile.name, remainingMinutes: remaining);
+      }
+    }
+  }
+
+  return result;
+}
+
 bool _isProfileBlocking(LimiterProfile profile, DateTime now) {
   switch (profile.type) {
     case LimiterType.daily:

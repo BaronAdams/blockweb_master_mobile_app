@@ -66,6 +66,7 @@ class BlockAccessibilityService : AccessibilityService() {
   }
 
   private lateinit var overlay: BlockOverlay
+  private lateinit var countdownNotifier: CountdownNotifier
 
   // Without a periodic flush, dwell time was only ever persisted at the
   // NEXT app switch (recordElapsed is only called from
@@ -108,6 +109,7 @@ class BlockAccessibilityService : AccessibilityService() {
   override fun onServiceConnected() {
     super.onServiceConnected()
     overlay = BlockOverlay(this)
+    countdownNotifier = CountdownNotifier(this)
     heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS)
     foregroundPollHandler.postDelayed(foregroundPollRunnable, FOREGROUND_POLL_INTERVAL_MS)
     registerReceiver(screenReceiver, IntentFilter().apply {
@@ -120,6 +122,7 @@ class BlockAccessibilityService : AccessibilityService() {
     heartbeatHandler.removeCallbacks(heartbeatRunnable)
     foregroundPollHandler.removeCallbacks(foregroundPollRunnable)
     try { unregisterReceiver(screenReceiver) } catch (e: Exception) {}
+    if (::countdownNotifier.isInitialized) countdownNotifier.dismiss()
     super.onDestroy()
   }
 
@@ -140,8 +143,16 @@ class BlockAccessibilityService : AccessibilityService() {
       return
     }
 
-    if (currentPkg != this.packageName && isBlocked(currentPkg) && !overlay.isShowingFor(currentPkg)) {
-      overlay.show(currentPkg, "app", "")
+    if (currentPkg == this.packageName) return
+
+    if (isBlocked(currentPkg)) {
+      if (!overlay.isShowingFor(currentPkg)) overlay.show(currentPkg, "app", "")
+      if (::countdownNotifier.isInitialized) countdownNotifier.dismiss()
+    } else if (!overlay.isShowingFor(currentPkg) && ::countdownNotifier.isInitialized) {
+      // Same app as last tick, still not blocked — re-reads the countdown
+      // prefs so the notification's remaining-minutes value stays current
+      // as Dart pushes fresh syncs, without waiting for a fresh app switch.
+      countdownNotifier.update(currentPkg)
     }
   }
 
@@ -179,14 +190,17 @@ class BlockAccessibilityService : AccessibilityService() {
       if (packageName == this.packageName) {
         // The user opened BlockWeb Master itself — nothing to block/track.
         overlay.dismiss()
+        if (::countdownNotifier.isInitialized) countdownNotifier.dismiss()
         return
       }
 
       if (isBlocked(packageName)) {
         overlay.show(packageName, "app", "")
+        if (::countdownNotifier.isInitialized) countdownNotifier.dismiss()
         return
       } else {
         overlay.dismiss()
+        if (::countdownNotifier.isInitialized) countdownNotifier.update(packageName)
       }
     }
 
@@ -377,6 +391,7 @@ class BlockAccessibilityService : AccessibilityService() {
     const val ADULT_DOMAINS_KEY = "adult_domains"
     const val ADULT_CONTENT_BLOCKED_KEY = "adult_content_blocked"
     const val REELS_SHORTS_BLOCKED_KEY = "reels_shorts_blocked"
+    const val PROFILE_COUNTDOWNS_KEY = "profile_countdowns"
     const val STATS_PREFIX = "usage:"
     const val DAYS_KEY = "usage_days"
     const val HOURLY_PREFIX = "usage_hourly:"

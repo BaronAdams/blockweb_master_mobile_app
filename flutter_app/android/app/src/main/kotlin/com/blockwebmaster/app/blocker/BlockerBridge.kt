@@ -89,6 +89,12 @@ class BlockerBridge(private val context: Context) : MethodChannel.MethodCallHand
           result.success(null)
         }
 
+        "setProfileCountdowns" -> {
+          val json = call.argument<String>("json") ?: "{}"
+          prefs().edit().putString(BlockAccessibilityService.PROFILE_COUNTDOWNS_KEY, json).apply()
+          result.success(null)
+        }
+
         "getUsageStats" -> result.success(readUsageStats())
         "getHourlyUsageStats" -> result.success(readHourlyUsageStats())
 
