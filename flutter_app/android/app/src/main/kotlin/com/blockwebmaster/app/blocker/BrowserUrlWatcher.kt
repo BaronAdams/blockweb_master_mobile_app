@@ -1,5 +1,7 @@
 package com.blockwebmaster.app.blocker
 
+import android.os.Build
+import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
 
 /**
@@ -57,6 +59,58 @@ object BrowserUrlWatcher {
     }
 
     return findUrlLikeEditText(root, depth = 0)
+  }
+
+  /**
+   * Best-effort in-place redirect: types the safe URL directly into the
+   * browser's own address bar (reusing the same URL_BAR_IDS this object
+   * already relies on for URL detection — real, exercised infrastructure,
+   * not a fresh guess) and submits it — this replaces the blocked tab's own
+   * content instead of opening an extra tab alongside it (see BlockOverlay's
+   * redirectBrowserToSafeTab, kept as the fallback when this fails), so no
+   * "dead" blocked tab is left sitting in the browser's tab list.
+   *
+   * Requires ACTION_IME_ENTER (API 30+) to submit the typed URL without a
+   * real IME attached — returns false below that SDK level, or if the
+   * address bar node can't be found/edited for any reason, so the caller
+   * can fall back to the open-a-new-tab approach instead of leaving text
+   * typed but never submitted.
+   */
+  fun navigateInPlace(root: AccessibilityNodeInfo?, packageName: String, url: String): Boolean {
+    if (root == null) return false
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+
+    val node = findUrlBarNode(root, packageName) ?: return false
+    return try {
+      val args = Bundle().apply {
+        putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, url)
+      }
+      val textSet = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+      if (!textSet) return false
+      node.performAction(AccessibilityNodeInfo.ACTION_IME_ENTER)
+    } catch (e: Exception) {
+      false
+    } finally {
+      try { node.recycle() } catch (e: Exception) {}
+    }
+  }
+
+  /** Only the known id-based lookup — unlike extractUrl's generic
+   *  URL-like-EditText fallback, typing into an arbitrary unrecognized field
+   *  that merely looks like it holds a URL is too risky (could be some
+   *  unrelated form input), so navigateInPlace only acts on a browser it
+   *  actually recognizes. */
+  private fun findUrlBarNode(root: AccessibilityNodeInfo, packageName: String): AccessibilityNodeInfo? {
+    for (id in URL_BAR_IDS[packageName].orEmpty()) {
+      val nodes = try {
+        root.findAccessibilityNodeInfosByViewId(id)
+      } catch (e: Exception) {
+        null
+      }
+      val node = nodes?.firstOrNull()
+      if (node != null) return node
+    }
+    return null
   }
 
   /** Generic fallback: search for an EditText-ish node whose text looks
