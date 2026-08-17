@@ -87,7 +87,10 @@ object BrowserUrlWatcher {
       }
       val textSet = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
       if (!textSet) return false
-      node.performAction(AccessibilityNodeInfo.ACTION_IME_ENTER)
+      // Unlike ACTION_SET_TEXT (a plain int constant on AccessibilityNodeInfo
+      // itself), ACTION_IME_ENTER only exists as a nested AccessibilityAction
+      // object (API 30+) — performAction() needs its .id, not the object.
+      node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
     } catch (e: Exception) {
       false
     } finally {
