@@ -23,7 +23,6 @@ class ProfileListSection extends ConsumerWidget {
     final i18n = ref.watch(i18nProvider);
     String t(String key, [Map<String, dynamic>? vars]) => i18n.t('profiles', key, vars: vars);
     String tb(String key) => i18n.t('blockLists', key);
-    String tc(String key) => i18n.t('common', key);
     final profiles = ref.watch(appStoreProvider).limiterProfiles;
 
     return Column(
@@ -75,6 +74,7 @@ class ProfileCard extends ConsumerWidget {
     final i18n = ref.watch(i18nProvider);
     String t(String key, [Map<String, dynamic>? vars]) => i18n.t('profiles', key, vars: vars);
     String ts(String key) => i18n.t('strictMode', key);
+    String tc(String key) => i18n.t('common', key);
 
     final meta = profileTypeMeta[profile.type]!;
 
