@@ -86,6 +86,17 @@ class BlockerBridge {
     } catch (_) {}
   }
 
+  /// JSON: { [packageName]: { profileName, remainingMinutes } } — see
+  /// profile_enforcement.dart's computeProfileCountdowns for how this is
+  /// built. Native shows the countdown as an ongoing notification the
+  /// moment one of these packages is in the foreground (CountdownNotifier.kt).
+  static Future<void> setProfileCountdowns(String json) async {
+    if (!_supported) return;
+    try {
+      await _channel.invokeMethod('setProfileCountdowns', {'json': json});
+    } catch (_) {}
+  }
+
   /// { [date]: { [packageName]: minutes } }
   static Future<Map<String, Map<String, double>>> getUsageStats() async {
     if (!_supported) return {};

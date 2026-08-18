@@ -209,7 +209,7 @@ class ProfileDetailScreen extends ConsumerWidget {
                       style: TextStyle(fontSize: 11, color: colors.mutedForeground)),
                   if (profile.activeDays != null && profile.activeDays!.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    Text('${t('appDays')}: ${profile.activeDays!.map((d) => d.name).join(', ')}',
+                    Text('${t('appDays')}: ${profile.activeDays!.map((d) => tc(d.labelKey)).join(', ')}',
                         style: TextStyle(fontSize: 11, color: colors.mutedForeground)),
                   ],
                 ],
@@ -228,7 +228,7 @@ class ProfileDetailScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(profile.intervalConfig!.days.map((d) => d.name).join(', '),
+                  Text(profile.intervalConfig!.days.map((d) => tc(d.labelKey)).join(', '),
                       style: TextStyle(fontSize: 12, color: colors.mutedForeground)),
                 ],
               ),

@@ -23,6 +23,7 @@ class ProfileListSection extends ConsumerWidget {
     final i18n = ref.watch(i18nProvider);
     String t(String key, [Map<String, dynamic>? vars]) => i18n.t('profiles', key, vars: vars);
     String tb(String key) => i18n.t('blockLists', key);
+    String tc(String key) => i18n.t('common', key);
     final profiles = ref.watch(appStoreProvider).limiterProfiles;
 
     return Column(
@@ -157,7 +158,7 @@ class ProfileCard extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           '${profile.intervalConfig!.startTime}–${profile.intervalConfig!.endTime} · '
-                          '${profile.intervalConfig!.days.map((d) => d.name).join(' ')}',
+                          '${profile.intervalConfig!.days.map((d) => tc(d.labelKey)).join(' ')}',
                           style: TextStyle(fontSize: 12, color: colors.mutedForeground),
                         ),
                       ),

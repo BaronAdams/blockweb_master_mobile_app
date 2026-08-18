@@ -179,7 +179,7 @@ class _TabsShell extends ConsumerWidget {
       // BlocklistsIndexScreen) — Profiles no longer has its own tab.
       (path: '/blocklists', icon: Icons.block_rounded, label: i18n.t('blockLists', 'title')),
       (path: '/strictmode', icon: Icons.shield_outlined, label: i18n.t('strictMode', 'title')),
-      (path: '/account', icon: Icons.settings_outlined, label: i18n.t('account', 'title')),
+      (path: '/account', icon: Icons.person_outline_rounded, label: i18n.t('account', 'title')),
     ];
 
     return Scaffold(

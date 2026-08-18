@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +53,7 @@ class AppMonitorService {
   static bool? _lastSyncedAdultContentBlocked;
   static bool? _lastSyncedReelsShortsBlocked;
   static String? _lastSyncedLanguage;
+  static String? _lastSyncedCountdowns;
 
   /// Call once at startup with the app's ProviderContainer (see main.dart),
   /// alongside SessionSyncService.init.
@@ -102,6 +104,7 @@ class AppMonitorService {
     _syncAdultDomains(state);
     _syncAdultContentBlocked(state);
     _syncReelsShortsBlocked(state);
+    _syncProfileCountdowns(state);
   }
 
   // Adult-content and Reels/Shorts blocking are Premium-only features — the
@@ -174,6 +177,24 @@ class AppMonitorService {
     if (_lastSyncedReelsShortsBlocked == active) return;
     _lastSyncedReelsShortsBlocked = active;
     BlockerBridge.setReelsShortsBlocked(active);
+  }
+
+  /// Pushes, per package covered by an active/still-budgeted daily/hourly/
+  /// weekly profile, which profile applies and how many minutes are left —
+  /// native shows this as an ongoing notification while that exact app is
+  /// in the foreground (see CountdownNotifier.kt), so the user sees the
+  /// time-limit countdown the moment they open the app rather than only
+  /// finding out once it's already blocked.
+  static void _syncProfileCountdowns(AppStoreState state) {
+    final countdowns = computeProfileCountdowns(state);
+    final payload = {
+      for (final entry in countdowns.entries)
+        entry.key: {'profileName': entry.value.profileName, 'remainingMinutes': entry.value.remainingMinutes},
+    };
+    final key = jsonEncode(payload);
+    if (_lastSyncedCountdowns == key) return;
+    _lastSyncedCountdowns = key;
+    BlockerBridge.setProfileCountdowns(key);
   }
 
   static void _syncBlockScreenStrings(I18nService i18n) {

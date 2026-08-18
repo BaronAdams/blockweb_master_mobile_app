@@ -114,6 +114,14 @@ class WhitelistedSite {
 
 enum DayOfWeek { mon, tue, wed, thu, fri, sat, sun }
 
+/// DayOfWeek.name is the raw lowercase English enum value ('mon', 'tue'…) —
+/// not display text. `common` namespace has localized, capitalized
+/// abbreviations keyed by the same names capitalized ('Mon', 'Tue'…):
+/// `i18n.t('common', day.labelKey)`.
+extension DayOfWeekLabel on DayOfWeek {
+  String get labelKey => '${name[0].toUpperCase()}${name.substring(1)}';
+}
+
 class IntervalConfig {
   final String startTime;
   final String endTime;
