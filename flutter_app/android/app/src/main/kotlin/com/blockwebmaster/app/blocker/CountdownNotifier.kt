@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import com.blockwebmaster.app.R
 import org.json.JSONObject
 
@@ -44,10 +45,14 @@ class CountdownNotifier(private val service: BlockAccessibilityService) {
   fun update(packageName: String) {
     val entry = countdownFor(packageName)
     if (entry == null) {
+      // See DEBUG_LOGGING doc comment — confirms whether Dart ever pushed a
+      // countdown covering this package at all, before looking any further.
+      if (DEBUG_LOGGING) Log.d(TAG, "update pkg=$packageName: no countdown entry (raw=${prefsString(BlockAccessibilityService.PROFILE_COUNTDOWNS_KEY)})")
       dismiss()
       return
     }
     val (profileName, remainingMinutes) = entry
+    if (DEBUG_LOGGING) Log.d(TAG, "update pkg=$packageName profile=$profileName remaining=$remainingMinutes")
     if (shownForPackage == packageName && lastRemainingMinutes == remainingMinutes) return
     show(packageName, profileName, remainingMinutes)
   }
@@ -62,7 +67,10 @@ class CountdownNotifier(private val service: BlockAccessibilityService) {
   }
 
   private fun show(packageName: String, profileName: String, remainingMinutes: Int) {
-    if (!hasNotificationPermission()) return
+    if (!hasNotificationPermission()) {
+      if (DEBUG_LOGGING) Log.d(TAG, "show pkg=$packageName: POST_NOTIFICATIONS not granted, skipping")
+      return
+    }
     val nm = notificationManager() ?: return
     ensureChannel(nm)
 
@@ -101,9 +109,11 @@ class CountdownNotifier(private val service: BlockAccessibilityService) {
       nm.notify(NOTIFICATION_ID, builder.build())
       shownForPackage = packageName
       lastRemainingMinutes = remainingMinutes
+      if (DEBUG_LOGGING) Log.d(TAG, "show pkg=$packageName: notify() called, title=\"$title\" body=\"$body\"")
     } catch (e: Exception) {
       // Best-effort — a failed notification just means no countdown is
       // visible, not something worth crashing the accessibility service over.
+      if (DEBUG_LOGGING) Log.w(TAG, "show pkg=$packageName: notify() threw", e)
     }
   }
 
@@ -153,5 +163,11 @@ class CountdownNotifier(private val service: BlockAccessibilityService) {
   companion object {
     private const val CHANNEL_ID = "blockweb_master_countdown"
     private const val NOTIFICATION_ID = 4821
+    // Reported non-functional with no device to reproduce on — capture via
+    // `adb logcat -s BWM_Countdown` while opening an app covered by an
+    // active scheduled profile with time left. Flip back to false once
+    // diagnosed.
+    private const val DEBUG_LOGGING = true
+    private const val TAG = "BWM_Countdown"
   }
 }
